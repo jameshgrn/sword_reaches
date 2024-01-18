@@ -94,7 +94,8 @@ def read_data_from_gcs(bucket_name, file_prefix):
     final_df = pd.concat(dfs, ignore_index=True)
     try:
         # Parse the geometry from the '.geo' column, which is in JSON format
-        final_df['geometry'] = final_df['.geo'].apply(lambda x: shape(json.loads(x)))
+        # final_df['geometry'] = final_df['.geo'].apply(lambda x: shape(json.loads(x))['coordinates'])
+        final_df['geometry'] = final_df['geometry'].apply(Point)
         gdf = GeoDataFrame(final_df, geometry='geometry')
     except KeyError as e:
         print(f"Error processing geometry: {e}")

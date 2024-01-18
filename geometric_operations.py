@@ -43,6 +43,10 @@ def create_points(row):
 def create_cross_section_points(sword_cross_sections):
     sword_cross_sections['points'] = sword_cross_sections.apply(create_points, axis=1)
     cross_section_points = sword_cross_sections.explode('points').reset_index(drop=True)
+    
+    # Debugging: Check the unique geometries after explode
+    print(cross_section_points['points'].apply(lambda geom: geom.wkt).unique())
+    
     cross_section_points.rename(columns={'points': 'geometry'}, inplace=True)
     cross_section_points.set_geometry('geometry', inplace=True, crs='EPSG:3857')
     cross_section_points = cross_section_points.drop(columns=[col for col in cross_section_points.columns if isinstance(cross_section_points[col].dtype, gpd.array.GeometryDtype) and col != 'geometry'])
@@ -71,36 +75,6 @@ def calculate_distance_along_cross_section(gdf):
         gdf.loc[gdf['cross_id'] == cross_id, 'dist_along'] = distances
 
     return gdf
-
-def select_nodes_based_on_meander_length_sinuosity_and_azimuth(node_gdf, meander_fraction, sinuosity_threshold, min_distance, azimuth_range):
-    # Select nodes where the cumulative distance is a multiple of the meander fraction
-    # and the sinuosity is below the threshold
-    potential_nodes = node_gdf[(node_gdf['dist_out'] % (node_gdf['meand_len'] * meander_fraction) < 10) & 
-                               (node_gdf['sinuosity'] <= sinuosity_threshold)]
-
-    # Convert azimuth range to radians
-    azimuth_min, azimuth_max = np.radians(azimuth_range)
-
-    # Initialize an empty GeoDataFrame to store the selected nodes
-    selected_nodes = gpd.GeoDataFrame(columns=potential_nodes.columns)
-
-    # Iterate over the potential nodes
-    for idx, node in potential_nodes.iterrows():
-        # Calculate the azimuth of the node and ensure it's within the range
-        node_azimuth = node['azimuth']
-        if azimuth_min <= node_azimuth <= azimuth_max:
-            # If there are no selected nodes yet, select the first node
-            if selected_nodes.empty:
-                selected_nodes = selected_nodes.append(node)
-            else:
-                # Check the distance to the last selected node
-                last_node = selected_nodes.iloc[-1]
-                distance = node['original_geom'].distance(last_node['original_geom'])
-                # If the distance is greater than the minimum distance, select the node
-                if distance >= min_distance:
-                    selected_nodes = selected_nodes.append(node)
-
-    return selected_nodes
 
 def perform_geometric_operations(node_gdf):
     # Select nodes based on meander length and sinuosity

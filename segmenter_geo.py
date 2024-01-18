@@ -170,11 +170,11 @@ cross_section_stats['skew_slope'] = all_elevations_gdf.groupby('cross_id')['slop
 # Calculate the kurtosis of the slope
 cross_section_stats['kurtosis_slope'] = all_elevations_gdf.groupby('cross_id')['slope'].apply(kurtosis)
 
-# Convert the JSON strings in the '.geo' column to shapely geometry objects
-cross_section_stats['geometry'] = cross_section_stats['.geo'].apply(lambda x: shape(json.loads(x)))
+# # Convert the JSON strings in the '.geo' column to shapely geometry objects
+# cross_section_stats['geometry'] = cross_section_stats['geometry'].apply(lambda x: shape(json.loads(x)))
 
-# Now create the GeoDataFrame using the 'geometry' column with shapely objects
-cross_section_stats = gpd.GeoDataFrame(cross_section_stats, geometry='geometry')
+# # Now create the GeoDataFrame using the 'geometry' column with shapely objects
+# cross_section_stats = gpd.GeoDataFrame(cross_section_stats, geometry='geometry')
 
 cross_section_stats.to_parquet(f'cross_section_stats_{name}.parquet')
 #%%
@@ -211,3 +211,5 @@ for i in range(len(variables), n_rows*n_cols):
 
 plt.tight_layout()
 plt.show()
+
+# %%
