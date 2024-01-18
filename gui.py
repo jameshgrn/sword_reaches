@@ -1,3 +1,4 @@
+#%%
 import matplotlib.pyplot as plt
 import geopandas as gpd
 import matplotlib
@@ -11,10 +12,13 @@ import os
 from shapely import wkb
 import numpy as np
 from shapely.geometry import Point
+import cartopy.crs as ccrs
+import cartopy.io.img_tiles as cimgt
 
+name = "A002_3_4"
 
 # Load the data
-sword_data_gdf = gpd.read_parquet('all_elevations_gdf_AFR.parquet')
+sword_data_gdf = gpd.read_parquet(f'all_elevations_gdf_{name}.parquet')
 sword_data_gdf['geometry'] = [Point(xy) for xy in zip(sword_data_gdf.x, sword_data_gdf.y)]
 sword_data_gdf = sword_data_gdf.drop(['.geo'], axis=1)
 sword_data_gdf.set_geometry('geometry', inplace=True)
@@ -83,7 +87,7 @@ def get_empty_dataframe_with_columns():
     return pd.DataFrame(columns = columns)
 
 
-def update_and_save_to_csv(df, labeled_points, filename="AFR_output.csv"):
+def update_and_save_to_csv(df, labeled_points, filename=f"{name}_output.csv"):
     # Start with an empty DataFrame with all the required columns
     attr_df = get_empty_dataframe_with_columns()
     
@@ -124,20 +128,46 @@ def save_last_processed_index(idx, filename="last_processed.txt"):
 
 
 def label_cross_section(df):
-    fig, ax = plt.subplots()
-    # df['along_track_distance'] = compute_along_track_distance(df)
+    # Create a figure with subplots
+    fig = plt.figure(figsize=(15, 8))
+    
+    # Adjust subplot parameters to give the map more space
+    ax1 = plt.subplot(121)
+    ax2 = plt.subplot(122, projection=ccrs.PlateCarree())
 
-    ax.plot(df['dist_along'], df['elevation'], '-o', markersize=2)
+    # Plot the elevation profile on the left subplot
+    ax1.plot(df['dist_along'], df['elevation'], '-o', markersize=2, color='blue')
+    ax1.set_xlabel('Along Track Distance')
+    ax1.set_ylabel('Elevation')
 
-    # Change order of labeling here
+    # Add the satellite background image on the right subplot with a higher zoom level
+    osm_background = cimgt.GoogleTiles(style='satellite')
+    ax2.add_image(osm_background, 15)  # Adjust zoom level as needed
+
+    # Ensure cross_section_points is in the correct CRS
+    plot_gdf = df.to_crs('EPSG:4326')
+
+    # Plot the elevation points on the map, colored by elevation
+    scatter = ax2.scatter(plot_gdf.geometry.x, plot_gdf.geometry.y, c=plot_gdf['elevation'],
+                          cmap='terrain', marker='o', edgecolor='k', linewidth=0.5, s=10, transform=ccrs.PlateCarree())
+
+    # Add a colorbar for the elevation
+    plt.colorbar(scatter, ax=ax2, orientation='vertical', label='Elevation')
+
+    # Set the extent to the bounds of the cross section points, with a small buffer
+    bounds = plot_gdf.total_bounds
+    buffer = 0.001  # Add a small buffer to ensure all points are within the view
+    ax2.set_extent([bounds[0] - buffer, bounds[2] + buffer, bounds[1] - buffer, bounds[3] + buffer], crs=ccrs.PlateCarree())
+
+    # Rest of the labeling logic remains the same...
     points = {'channel': [], 'ridge1': [], 'floodplain1': [], 'ridge2': [], 'floodplain2': []}
     labels = list(points.keys())
     current_label_idx = 0
 
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
+    xlim = ax1.get_xlim()
+    ylim = ax1.get_ylim()
 
-    ax.set_title(f"Pick {labels[current_label_idx]}")
+    ax1.set_title(f"Pick {labels[current_label_idx]}")
 
     plotted_points = []
 
@@ -151,14 +181,14 @@ def label_cross_section(df):
         colors = {'channel': 'b', 'ridge1': 'g', 'ridge2': 'g',
                   'floodplain1': 'r', 'floodplain2': 'r'}
 
-        plotted_point, = ax.plot(ix, iy, 'X', markersize=10, color=colors[labels[current_label_idx]])
+        plotted_point, = ax1.plot(ix, iy, 'X', markersize=10, color=colors[labels[current_label_idx]])
         plotted_points.append(plotted_point)
 
         current_label_idx += 1
         if current_label_idx < len(labels):
-            ax.set_title(f"Pick {labels[current_label_idx]}")
+            ax1.set_title(f"Pick {labels[current_label_idx]}")
         else:
-            ax.set_title("All points labeled. Press 'd' to save and continue.")
+            ax1.set_title("All points labeled. Press 'd' to save and continue.")
         fig.canvas.draw()
 
     def onkey(event):
@@ -169,7 +199,7 @@ def label_cross_section(df):
                 removed_point = points[labels[current_label_idx]].pop()
                 plotted_point_to_remove = plotted_points.pop()
                 plotted_point_to_remove.remove()
-                ax.set_title(f"Pick {labels[current_label_idx]}")
+                ax1.set_title(f"Pick {labels[current_label_idx]}")
                 fig.canvas.draw()
         elif event.key == 'd':
             plt.close()
@@ -177,8 +207,6 @@ def label_cross_section(df):
     cid_click = fig.canvas.mpl_connect('button_press_event', onclick)
     cid_key = fig.canvas.mpl_connect('key_press_event', onkey)
 
-    plt.xlabel('Along Track Distance')
-    plt.ylabel('Elevation')
     plt.show()
 
     return df, points
@@ -196,25 +224,22 @@ start_idx = get_last_processed_index()
 # Process each cross-section
 for idx in range(start_idx, len(cross_sections), n):
     df = cross_sections[idx]
+    # Create a GeoDataFrame for the current cross section points
+    
     remaining = total_cross_sections_to_process - (idx // n) - 1
     print(f"Processing cross-section {idx + 1} of {len(cross_sections)} ({remaining} remaining)")
-
-    # df['geometry'] = df['.geo'].apply(maybe_loads_from_wkb)
 
     df, labeled_points = label_cross_section(df)
 
     # If no points are labeled and it's the first cross-section, save the empty dataframe
     if idx == 0 and all(not v for v in labeled_points.values()):
         empty_df = get_empty_dataframe_with_columns()
-        empty_df.to_csv("AFR_output.csv", index = False)
+        empty_df.to_csv(f"{name}_output.csv", index = False)
     else:
         df = compute_distance_to_river_center(df, labeled_points)
         labeled_data.append((df, labeled_points))
         # Update and save to CSV after every cross section
-        update_and_save_to_csv(df, labeled_points, filename = "AFR_output.csv")
+        update_and_save_to_csv(df, labeled_points, filename = f"{name}_output.csv")
         save_last_processed_index(idx)
 
-
-
-
-
+# %%

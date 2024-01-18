@@ -55,7 +55,7 @@ def process_all_points(fabdem, cross_section_points, unique_id):
         # print(fc_chunk.getInfo())
 
         # Sample the elevation at all points in the current chunk
-        profiles = fabdem.sampleRegions(collection=fc_chunk, scale=30)
+        profiles = fabdem.sampleRegions(collection=fc_chunk, scale=30, geometries=True)  # Add geometries=True to retain geometry
 
         # Export the results to Cloud Storage
         task = ee.batch.Export.table.toCloudStorage(
@@ -93,11 +93,17 @@ def read_data_from_gcs(bucket_name, file_prefix):
     # Concatenate all dataframes
     final_df = pd.concat(dfs, ignore_index=True)
     try:
-        final_df['geometry'] = final_df['geometry'].apply(wkt.loads)
-        gdf = GeoDataFrame(final_df, geometry='geometry')
-    except KeyError:
-        final_df['.geo'] = final_df['.geo'].apply(lambda x: shape(json.loads(x)))
-        gdf = GeoDataFrame(final_df, geometry='.geo')
+        # If the geometry column is present, use it
+        if 'geometry' in final_df.columns:
+            final_df['geometry'] = final_df['geometry'].apply(wkt.loads)
+            gdf = GeoDataFrame(final_df, geometry='geometry')
+        else:
+            # If the geometry is in the '.geo' column, parse it from JSON
+            final_df['.geo'] = final_df['.geo'].apply(lambda x: shape(json.loads(x)))
+            gdf = GeoDataFrame(final_df, geometry='.geo')
+    except KeyError as e:
+        print(f"Error processing geometry: {e}")
+        gdf = GeoDataFrame(final_df)
         
     return gdf
 

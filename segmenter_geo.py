@@ -32,15 +32,8 @@ sql = f"""
     """
 df = gpd.read_postgis(sql, engine, geom_col='geom', crs='EPSG:4326')
 
-# # Select a random reach_id
-# sql_rand = f"""
-#     SELECT reach_id FROM sword_reachesv16
-#     ORDER BY RANDOM()
-#     LIMIT 1;
-#     """
-# rand = pd.read_sql(sql_rand, engine)
-# random_reach_id = rand.iloc[0]['reach_id']
-random_reach_id = 11493100371
+random_reach_id = 61569000401
+name = "A002_3_4"
 
 # Create a GeoDataFrame for the result with the correct geometry column and CRS
 result = gpd.GeoDataFrame(columns=df.columns, geometry='geom', crs='EPSG:4326')
@@ -131,7 +124,7 @@ unique_id = uuid.uuid4()
 unique_id_str = str(unique_id)
 all_elevations_gdf = perform_cross_section_sampling(cross_section_points, unique_id_str)
 all_elevations_gdf.rename(columns={'b1': 'elevation'}, inplace=True)
-all_elevations_gdf.to_parquet('all_elevations_gdf_AFR.parquet')
+all_elevations_gdf.to_parquet(f'all_elevations_gdf_{name}.parquet')
 #%%
 from scipy.stats import kurtosis
 
@@ -179,7 +172,7 @@ cross_section_stats_df = cross_section_stats.merge(all_elevations_gdf, left_inde
 # Convert the DataFrame back to a GeoDataFrame before saving to parquet
 cross_section_stats = gpd.GeoDataFrame(cross_section_stats_df, geometry='.geo')
 
-cross_section_stats.to_parquet('cross_section_stats_AFR.parquet')
+cross_section_stats.to_parquet(f'cross_section_stats_{name}.parquet')
 #%%
 # Plotting
 plt.figure(figsize=(10, 10))

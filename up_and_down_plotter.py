@@ -15,7 +15,7 @@ import os
 from shapely import wkb
 import numpy as np
 
-df = pd.read_csv('VENEZ_outputFULL3.csv', header=0, sep=',')
+df = pd.read_csv('v11_output.csv', header=0, sep=',')
 
 # Superelevation calculations for ridges 1 and 2 and their mean.
 df['superelevation1'] = (df['ridge1_elevation'] - df['floodplain1_elevation']) / (df['ridge1_elevation'] - df['channel_elevation'])
@@ -52,8 +52,8 @@ ridge2_slope = selected_rows2.apply(lambda row: (row['ridge2_elevation'] - row['
 df.loc[selected_rows1.index, 'ridge1_slope'] = ridge1_slope
 df.loc[selected_rows2.index, 'ridge2_slope'] = ridge2_slope
 
-df['gamma1'] = ridge1_slope / df['channel_slope']
-df['gamma2'] = ridge2_slope / df['channel_slope']
+df['gamma1'] = np.abs(ridge1_slope) / df['channel_slope']
+df['gamma2'] = np.abs(ridge2_slope) / df['channel_slope']
 df['gamma_mean'] = df[['gamma1', 'gamma2']].mean(axis=1, skipna=True)
 
 # df = df[df['gamma_mean'] < 3000]
@@ -143,27 +143,23 @@ import statsmodels.api as sm
 df['ridge_height_mean'] = df[['ridge1_height', 'ridge2_height']].mean(axis=1)
 df['ridge_width_mean'] = df[['ridge1_width', 'ridge2_width']].mean(axis=1)
 
-# Filter out non-positive values before log transformation for OLS
-df_ols = df[(df['ridge_height_mean'] > 0) & (df['ridge_width_mean'] > 0)].copy()
-df_ols['log_ridge_height_mean'] = np.log(df_ols['ridge_height_mean'])
-df_ols['log_ridge_width_mean'] = np.log(df_ols['ridge_width_mean'])
+# Filter out non-positive values before plotting
+df_plot = df[(df['ridge_height_mean'] > 0) & (df['ridge_width_mean'] > 0)].copy()
 
-# Fit OLS to the log-transformed data
-X = sm.add_constant(df_ols['log_ridge_width_mean'])  # adding a constant
-model = sm.OLS(df_ols['log_ridge_height_mean'], X)
+# Fit OLS to the data
+X = sm.add_constant(df_plot['ridge_width_mean'])  # adding a constant
+model = sm.OLS(df_plot['ridge_height_mean'], X)
 results = model.fit()
 
-# Scatter plot for mean ridge height vs mean ridge width with log scale
+# Scatter plot for mean ridge height vs mean ridge width using seaborn
 plt.figure(figsize=(6, 3))
-plt.scatter(df['ridge_width_mean'], df['ridge_height_mean'], c='black', label='Ridge Mean')
-plt.xscale('log')
-plt.yscale('log')
+sns.scatterplot(x='ridge_width_mean', y='ridge_height_mean', hue='dist_out', data=df_plot)
 plt.xlabel('Mean Ridge Width (m)')
 plt.ylabel('Mean Ridge Height (m)')
-plt.title('Mean Ridge Width vs Mean Ridge Height (Log Scale)')
+plt.title('Mean Ridge Width vs Mean Ridge Height')
 
-# Plot the OLS fit on the log scale
-plt.plot(np.exp(df_ols['log_ridge_width_mean']), np.exp(results.fittedvalues), color='r', lw=2, ls='--', label='OLS Fit')
+# Plot the OLS fit
+plt.plot(df_plot['ridge_width_mean'], results.fittedvalues, color='r', lw=2, ls='--', label='OLS Fit')
 
 plt.legend()
 plt.tight_layout()
