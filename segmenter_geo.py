@@ -32,8 +32,8 @@ sql = f"""
     """
 df = gpd.read_postgis(sql, engine, geom_col='geom', crs='EPSG:4326')
 
-random_reach_id = 61569000401
-name = "A002_3_4"
+random_reach_id = 75390300021
+name = "test"
 
 # Create a GeoDataFrame for the result with the correct geometry column and CRS
 result = gpd.GeoDataFrame(columns=df.columns, geometry='geom', crs='EPSG:4326')
@@ -124,6 +124,10 @@ unique_id = uuid.uuid4()
 unique_id_str = str(unique_id)
 all_elevations_gdf = perform_cross_section_sampling(cross_section_points, unique_id_str)
 all_elevations_gdf.rename(columns={'b1': 'elevation'}, inplace=True)
+
+# Ensure that the 'geometry' column is set as the active geometry
+all_elevations_gdf.set_geometry('geometry', inplace=True)
+
 all_elevations_gdf.to_parquet(f'all_elevations_gdf_{name}.parquet')
 #%%
 from scipy.stats import kurtosis
@@ -166,11 +170,11 @@ cross_section_stats['skew_slope'] = all_elevations_gdf.groupby('cross_id')['slop
 # Calculate the kurtosis of the slope
 cross_section_stats['kurtosis_slope'] = all_elevations_gdf.groupby('cross_id')['slope'].apply(kurtosis)
 
-# Merge the node_gdf data with cross_section_stats
-cross_section_stats_df = cross_section_stats.merge(all_elevations_gdf, left_index=True, right_on='cross_id', how='left')
+# Convert the JSON strings in the '.geo' column to shapely geometry objects
+cross_section_stats['geometry'] = cross_section_stats['.geo'].apply(lambda x: shape(json.loads(x)))
 
-# Convert the DataFrame back to a GeoDataFrame before saving to parquet
-cross_section_stats = gpd.GeoDataFrame(cross_section_stats_df, geometry='.geo')
+# Now create the GeoDataFrame using the 'geometry' column with shapely objects
+cross_section_stats = gpd.GeoDataFrame(cross_section_stats, geometry='geometry')
 
 cross_section_stats.to_parquet(f'cross_section_stats_{name}.parquet')
 #%%

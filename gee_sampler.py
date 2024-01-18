@@ -93,14 +93,9 @@ def read_data_from_gcs(bucket_name, file_prefix):
     # Concatenate all dataframes
     final_df = pd.concat(dfs, ignore_index=True)
     try:
-        # If the geometry column is present, use it
-        if 'geometry' in final_df.columns:
-            final_df['geometry'] = final_df['geometry'].apply(wkt.loads)
-            gdf = GeoDataFrame(final_df, geometry='geometry')
-        else:
-            # If the geometry is in the '.geo' column, parse it from JSON
-            final_df['.geo'] = final_df['.geo'].apply(lambda x: shape(json.loads(x)))
-            gdf = GeoDataFrame(final_df, geometry='.geo')
+        # Parse the geometry from the '.geo' column, which is in JSON format
+        final_df['geometry'] = final_df['.geo'].apply(lambda x: shape(json.loads(x)))
+        gdf = GeoDataFrame(final_df, geometry='geometry')
     except KeyError as e:
         print(f"Error processing geometry: {e}")
         gdf = GeoDataFrame(final_df)
