@@ -149,7 +149,7 @@ def label_cross_section(df):
 
     # Add the satellite background image on the right subplot with a higher zoom level
     osm_background = cimgt.GoogleTiles(style='satellite', cache=True)
-    ax2.add_image(osm_background, 17)  # Adjust zoom level as needed
+    ax2.add_image(osm_background, 15)  # Adjust zoom level as needed
 
     # Ensure cross_section_points is in the correct CRS
     plot_gdf = df.to_crs('EPSG:4326')
