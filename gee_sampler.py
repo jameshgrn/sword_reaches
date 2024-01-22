@@ -1,4 +1,4 @@
-
+#%%
 import os
 import ee
 import geemap
@@ -13,6 +13,8 @@ from gcsfs.core import GCSFileSystem
 import google.auth
 import json
 from shapely.geometry import shape
+
+
 
 def initialize_gee():
     try:
@@ -78,6 +80,8 @@ def check_tasks_status(tasks):
             time.sleep(10)
         print(f'Task {task.id} is completed')
 
+
+
 def read_data_from_gcs(bucket_name, file_prefix):
     service_account = 'levee-cloud-storage@leveefinders.iam.gserviceaccount.com'
     credentials_path = 'leveefinders-a9d0bde21676.json'
@@ -92,16 +96,18 @@ def read_data_from_gcs(bucket_name, file_prefix):
                 dfs.append(df)
     # Concatenate all dataframes
     final_df = pd.concat(dfs, ignore_index=True)
-    try:
-        # Parse the geometry from the '.geo' column, which is in JSON format
-        # final_df['geometry'] = final_df['.geo'].apply(lambda x: shape(json.loads(x))['coordinates'])
-        final_df['geometry'] = final_df['geometry'].apply(Point)
-        gdf = GeoDataFrame(final_df, geometry='geometry')
-    except KeyError as e:
-        print(f"Error processing geometry: {e}")
-        gdf = GeoDataFrame(final_df)
-        
-    return gdf
+
+    # Rename 'b1' column to 'elevation'
+    final_df.rename(columns={'b1': 'elevation'}, inplace=True)
+
+    # Convert JSON strings in '.geo' column to shapely geometry objects and set as active geometry
+    final_df['geometry'] = final_df['.geo'].apply(lambda x: shape(json.loads(x)))
+    final_df = gpd.GeoDataFrame(final_df, geometry='geometry', crs="EPSG:4326")
+
+    # Drop the '.geo', 'x', and 'y' columns as they are no longer needed
+    final_df.drop(columns=['.geo', 'x', 'y'], inplace=True)
+
+    return final_df
 
 def perform_cross_section_sampling(cross_section_points, unique_id):
     initialize_gee()
@@ -110,3 +116,4 @@ def perform_cross_section_sampling(cross_section_points, unique_id):
     # Read the data from GCS
     cross_section_points_elevations = read_data_from_gcs('leveefinders-test', f'{unique_id}_Cross_Section_Sampling_')
     return cross_section_points_elevations
+# %%

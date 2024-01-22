@@ -1,5 +1,5 @@
 #%%
-from geometric_operations import perform_geometric_operations, select_nodes_based_on_meander_length_sinuosity_and_azimuth
+from geometric_operations import perform_geometric_operations
 from gee_sampler import perform_cross_section_sampling
 import uuid
 import ee
@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 from statsmodels.nonparametric.smoothers_lowess import lowess
-
+from shapely.geometry import shape
+import json
 # Define the PostgreSQL connection parameters
 db_params = {
     'dbname': 'jakegearon',
@@ -32,8 +33,8 @@ sql = f"""
     """
 df = gpd.read_postgis(sql, engine, geom_col='geom', crs='EPSG:4326')
 
-random_reach_id = 75390300021
-name = "test"
+random_reach_id = 62266401931
+name = "3A26"
 
 # Create a GeoDataFrame for the result with the correct geometry column and CRS
 result = gpd.GeoDataFrame(columns=df.columns, geometry='geom', crs='EPSG:4326')
@@ -99,7 +100,7 @@ node_gdf = node_gdf.join(result[['slope']], on='reach_id')
 node_gdf.rename(columns={'geom': 'original_geom'}, inplace=True)
 node_gdf.set_geometry('original_geom', inplace=True)
 node_gdf.to_crs('EPSG:3857', inplace=True)
-
+#%%
 # Plot the nodes
 osm_background = cimgt.GoogleTiles(style='satellite')
 ax = plt.subplot(111, projection=ccrs.PlateCarree())
@@ -123,11 +124,6 @@ ax.set_extent([bounds[0], bounds[2], bounds[1], bounds[3]])
 unique_id = uuid.uuid4()
 unique_id_str = str(unique_id)
 all_elevations_gdf = perform_cross_section_sampling(cross_section_points, unique_id_str)
-all_elevations_gdf.rename(columns={'b1': 'elevation'}, inplace=True)
-
-# Ensure that the 'geometry' column is set as the active geometry
-all_elevations_gdf.set_geometry('geometry', inplace=True)
-
 all_elevations_gdf.to_parquet(f'all_elevations_gdf_{name}.parquet')
 #%%
 from scipy.stats import kurtosis
@@ -145,46 +141,54 @@ from scipy.stats import kurtosis
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import pandas as pd
 
+# Check if 'cross_id' is in the columns and set it as the index if it is
+if 'cross_id' in all_elevations_gdf.columns:
+    all_elevations_gdf.set_index('cross_id', inplace=True)
+else:
+    # If 'cross_id' is not in the columns, it might already be the index
+    # If it's not the index either, raise an error
+    if 'cross_id' != all_elevations_gdf.index.name:
+        raise KeyError("'cross_id' is neither in the columns nor the index.")
+
+# Perform the aggregation
 cross_section_stats = all_elevations_gdf.groupby('cross_id').agg({
     'elevation': ['mean', 'var', 'skew', lambda x: kurtosis(x), 'median', 'std'],
     'slope': ['mean', 'std', 'skew', lambda x: kurtosis(x)]
 }).ffill()
 
+# Flatten the MultiIndex columns
 cross_section_stats.columns = ['_'.join(col).strip() for col in cross_section_stats.columns.values]
 cross_section_stats.rename(columns={'elevation_<lambda_0>': 'elevation_kurtosis', 'slope_<lambda_0>': 'slope_kurtosis'}, inplace=True)
 
+# Calculate additional statistics
 cross_section_stats['relief'] = all_elevations_gdf.groupby('cross_id').apply(calculate_relief)
-
-# Calculate the azimuth range
 cross_section_stats['azimuth_range'] = all_elevations_gdf.groupby('cross_id')['azimuth'].apply(lambda x: x.max() - x.min())
-
-# Calculate the mean slope
 cross_section_stats['mean_slope'] = all_elevations_gdf.groupby('cross_id')['slope'].mean()
-
-# Calculate the standard deviation of the slope
 cross_section_stats['std_slope'] = all_elevations_gdf.groupby('cross_id')['slope'].std()
-
-# Calculate the skewness of the slope
 cross_section_stats['skew_slope'] = all_elevations_gdf.groupby('cross_id')['slope'].skew()
-
-# Calculate the kurtosis of the slope
 cross_section_stats['kurtosis_slope'] = all_elevations_gdf.groupby('cross_id')['slope'].apply(kurtosis)
 
-# # Convert the JSON strings in the '.geo' column to shapely geometry objects
-# cross_section_stats['geometry'] = cross_section_stats['geometry'].apply(lambda x: shape(json.loads(x)))
+# Join the aggregated stats back to the original DataFrame to include all information
+# Make sure 'cross_id' is a column before joining
+if 'cross_id' != all_elevations_gdf.index.name:
+    all_elevations_gdf.reset_index(inplace=True)
 
-# # Now create the GeoDataFrame using the 'geometry' column with shapely objects
-# cross_section_stats = gpd.GeoDataFrame(cross_section_stats, geometry='geometry')
+cross_section_stats = all_elevations_gdf.merge(cross_section_stats, on='cross_id', how='left')
 
+# Assuming 'geometry' is a column in all_elevations_gdf containing shapely geometry objects
+# If 'geometry' is not a column, you should adjust the code accordingly.
+cross_section_stats = gpd.GeoDataFrame(cross_section_stats, geometry='geometry')
+
+# Save the DataFrame to a Parquet file
 cross_section_stats.to_parquet(f'cross_section_stats_{name}.parquet')
 #%%
-# Plotting
-plt.figure(figsize=(10, 10))
-plt.scatter(cross_section_stats['mean_slope'], cross_section_stats['relief'])
-plt.xlabel('Mean Slope')
-plt.ylabel('Relief')
-plt.title('Slope vs Relief')
-plt.show()
+# # Plotting
+# plt.figure(figsize=(10, 10))
+# plt.scatter(cross_section_stats['mean_slope'], cross_section_stats['relief'])
+# plt.xlabel('Mean Slope')
+# plt.ylabel('Relief')
+# plt.title('Slope vs Relief')
+# plt.show()
 
 # Define the number of rows and columns for the subplot
 n_rows = 4

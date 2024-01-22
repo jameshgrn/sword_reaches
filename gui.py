@@ -15,16 +15,13 @@ from shapely.geometry import Point
 import cartopy.crs as ccrs
 import cartopy.io.img_tiles as cimgt
 
-name = "test"
+name = "3A26"
 
 # Load the data
 sword_data_gdf = gpd.read_parquet(f'all_elevations_gdf_{name}.parquet')
-sword_data_gdf['geometry'] = [Point(xy) for xy in zip(sword_data_gdf.x, sword_data_gdf.y)]
-sword_data_gdf = sword_data_gdf.drop(['.geo'], axis=1)
-sword_data_gdf.set_geometry('geometry', inplace=True)
 sword_data_gdf.crs = 'EPSG:4326'
-sword_data_gdf.to_crs('EPSG:3857', inplace=True)
 
+#%%
 # Organize data
 def organize_data_by_reach_and_node(data_gdf):
     grouped = data_gdf.groupby(['reach_id', 'node_id'])
@@ -33,6 +30,7 @@ def organize_data_by_reach_and_node(data_gdf):
                             reverse = True)
     return cross_sections
 
+
 cross_sections = organize_data_by_reach_and_node(sword_data_gdf)
 
 
@@ -40,8 +38,8 @@ def compute_attributes(df, labeled_points):
     df.set_index('dist_along', inplace=True, drop=False)
 
     # Slope
-    df['slope_r'] = df['elevation'].diff() / df.index.to_series().diff()
-    df['slope_r'].iloc[0] = df['elevation'].iloc[1] - df['elevation'].iloc[0]
+    df['slope_r'] = np.abs(df['elevation'].diff()) / df.index.to_series().diff()
+    df['slope_r'].iloc[0] = np.abs(df['elevation'].iloc[1] - df['elevation'].iloc[0])
 
     # Curvature (second derivative)
     df['curvature'] = df['slope_r'].diff() / df.index.to_series().diff()
@@ -140,23 +138,52 @@ def label_cross_section(df):
     ax1.set_xlabel('Along Track Distance')
     ax1.set_ylabel('Elevation')
 
+    # Determine the viewing direction based on the first and last point in the cross-section
+    start_point = df.iloc[0]
+    end_point = df.iloc[-1]
+    viewing_direction = "West to East" if start_point.geometry.x < end_point.geometry.x else "East to West"
+
+    # Add an arrow to indicate the start of the cross-section
+    ax1.annotate('', xy=(min(df['dist_along']), start_point['elevation']), xytext=(-50, 0),
+                 textcoords='offset points', arrowprops=dict(arrowstyle="->", color='red'))
+
     # Add the satellite background image on the right subplot with a higher zoom level
-    osm_background = cimgt.GoogleTiles(style='satellite')
-    ax2.add_image(osm_background, 15)  # Adjust zoom level as needed
+    osm_background = cimgt.GoogleTiles(style='satellite', cache=True)
+    ax2.add_image(osm_background, 17)  # Adjust zoom level as needed
 
     # Ensure cross_section_points is in the correct CRS
     plot_gdf = df.to_crs('EPSG:4326')
 
+    # Check the bounds
+    bounds = plot_gdf.total_bounds
+
     # Plot the elevation points on the map, colored by elevation
-    scatter = ax2.scatter(plot_gdf.geometry.x, plot_gdf.geometry.y, c=plot_gdf['elevation'],
-                          cmap='terrain', marker='o', edgecolor='k', linewidth=0.5, s=10, transform=ccrs.PlateCarree())
+    scatter = ax2.scatter(
+        plot_gdf.geometry.x,
+        plot_gdf.geometry.y,
+        c=plot_gdf['elevation'],
+        cmap='terrain',
+        marker='o',
+        edgecolor='k',
+        linewidth=0.5,
+        s=10,
+        transform=ccrs.PlateCarree()
+    )
+
+    start_point_map = plot_gdf.iloc[2].geometry
+    # Assuming the second point is close enough to create a small tail for the arrow
+    tail_point_map = plot_gdf.iloc[0].geometry
+    ax2.annotate('', xy=(tail_point_map.x, tail_point_map.y), xytext=(start_point_map.x, start_point_map.y),
+                 arrowprops=dict(arrowstyle="<-",
+                                 color='red',
+                                 lw=1),
+                 transform=ccrs.PlateCarree())
 
     # Add a colorbar for the elevation
     plt.colorbar(scatter, ax=ax2, orientation='vertical', label='Elevation')
 
     # Set the extent to the bounds of the cross section points, with a small buffer
-    bounds = plot_gdf.total_bounds
-    buffer = 0.001  # Add a small buffer to ensure all points are within the view
+    buffer = .001  # Add a small buffer to ensure all points are within the view
     ax2.set_extent([bounds[0] - buffer, bounds[2] + buffer, bounds[1] - buffer, bounds[3] + buffer], crs=ccrs.PlateCarree())
 
     # Rest of the labeling logic remains the same...
@@ -213,7 +240,7 @@ def label_cross_section(df):
 
 
 # Define n
-n = 10  # adjust this value to skip cross sections
+n = 2  # adjust this value to skip cross sections
 labeled_data = []
 
 total_cross_sections_to_process = len(cross_sections[::n])
@@ -243,3 +270,4 @@ for idx in range(start_idx, len(cross_sections), n):
         save_last_processed_index(idx)
 
 # %%
+

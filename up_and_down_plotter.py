@@ -14,8 +14,9 @@ warnings.filterwarnings('ignore')
 import os
 from shapely import wkb
 import numpy as np
+name = "B1"
 
-df = pd.read_csv('v11_output.csv', header=0, sep=',')
+df = pd.read_csv(f'{name}_output.csv', header=0, sep=',')
 
 # Superelevation calculations for ridges 1 and 2 and their mean.
 df['superelevation1'] = (df['ridge1_elevation'] - df['floodplain1_elevation']) / (df['ridge1_elevation'] - df['channel_elevation'])
