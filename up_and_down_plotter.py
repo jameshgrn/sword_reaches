@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore')
 import os
 from shapely import wkb
 import numpy as np
-name = "B1"
+name = "3A26"
 
 df = pd.read_csv(f'{name}_output.csv', header=0, sep=',')
 
