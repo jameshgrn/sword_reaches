@@ -15,10 +15,10 @@ from shapely.geometry import Point
 import cartopy.crs as ccrs
 import cartopy.io.img_tiles as cimgt
 
-name = "3A26"
+name = "B1"
 
 # Load the data
-sword_data_gdf = gpd.read_parquet(f'all_elevations_gdf_{name}.parquet')
+sword_data_gdf = gpd.read_parquet(f'data/all_elevations_gdf_{name}.parquet')
 sword_data_gdf.crs = 'EPSG:4326'
 
 #%%
@@ -72,9 +72,9 @@ def compute_attributes(df, labeled_points):
 
 
 def get_empty_dataframe_with_columns():
-    position_dependent_attrs = ['elevation', 'slope_r', 'slope', 'curvature', 'dist_along', 'dist_to_river_center']
+    position_dependent_attrs = ['elevation', 'slope_r', 'curvature', 'dist_along', 'dist_to_river_center']
     global_attributes = ['width', 'width_var', 'sinuosity', 'max_width', 'dist_out', 'n_chan_mod', 'n_chan_max', 'facc',
-                         'meand_len', 'type', 'reach_id', 'node_id']
+                         'meand_len', 'type', 'reach_id', 'node_id', 'slope']
     labels = ['channel', 'ridge1', 'floodplain1', 'ridge2', 'floodplain2']
 
     columns = []
@@ -240,7 +240,7 @@ def label_cross_section(df):
 
 
 # Define n
-n = 2  # adjust this value to skip cross sections
+n = 1  # adjust this value to skip cross sections
 labeled_data = []
 
 total_cross_sections_to_process = len(cross_sections[::n])

@@ -14,10 +14,10 @@ warnings.filterwarnings('ignore')
 import os
 from shapely import wkb
 import numpy as np
-name = "A004"
-df = pd.read_csv(f'data/{name}_output.csv', header=0, sep=',')
+name = "AFR"
+df = pd.read_csv(f'data/{name}_output_old.csv', header=0, sep=',')
 
-#df = pd.read_csv("data/B9_outputFULL2.csv", header=0, sep=',')
+#df = pd.read_csv("/Users/jakegearon/PycharmProjects/NDVI_Sinuosity/B9_outputFULL.csv", header=0, sep=',')
 
 # Reflecting values when only ridge1 exists and ridge2 does not
 mask_only_ridge1 = (~df['ridge1_elevation'].isna()) & (df['ridge2_elevation'].isna())
@@ -61,14 +61,14 @@ df['gamma2'] = np.abs(df['ridge2_slope']) / df['channel_slope']
 df['gamma_mean'] = df[['gamma1', 'gamma2']].mean(axis=1, skipna=True)
 
 
-# df = df[df['gamma_mean'] < 3000]
-# df = df[df['gamma_mean'] > .1]
+df = df[df['gamma_mean'] < 100]
+df = df[df['gamma_mean'] > 0]
 
 # Computing theta
 df['theta'] = df['gamma_mean'] * df['superelevation_mean']
 # Calculate ridge height for ridge1 and ridge2
-df['ridge1_height'] = df['ridge1_elevation'] - df['floodplain1_elevation']
-df['ridge2_height'] = df['ridge2_elevation'] - df['floodplain2_elevation']
+df['ridge1_height'] = np.abs(df['ridge1_elevation'] - df['floodplain1_elevation'])
+df['ridge2_height'] = np.abs(df['ridge2_elevation'] - df['floodplain2_elevation'])
 
 # Assuming ridge_width is the total width between floodplain1 and floodplain2,
 # if you need individual widths, you would need to define how to calculate them.
@@ -81,6 +81,7 @@ df['ridge2_width'] = df['floodplain2_dist_to_river_center'] * 2  # Assuming symm
 df = df.replace([np.inf, -np.inf], np.nan)
 #df = df.dropna(subset=['theta'])
 
+# df = df[df['dist_out'] > 3.950e6]
 # Drop rows with NaN values (if desired at this stage)
 ### three subplots
 
@@ -111,8 +112,8 @@ ax3.set_ylabel('Theta')
 ax3.invert_xaxis()  # Reverse the x-axis
 
 # Add vertical lines and set yscale to log for all plots
-for ax in [ax1, ax2, ax3]:
-    ax.set_yscale('log')
+# for ax in [ax1, ax2, ax3]:
+#     ax.set_yscale('log')
 
 ax1.legend(ncol=1, fontsize=10, loc='upper left')
 ax2.legend(ncol=1, fontsize=10, loc='upper left')
@@ -162,11 +163,38 @@ plt.title('Mean Ridge Width vs Mean Ridge Height')
 
 # Plot the OLS fit
 plt.plot(df_plot['ridge_width_mean'], results.fittedvalues, color='r', lw=2, ls='--', label='OLS Fit')
+plt.ylim(top=10)
 
-plt.legend()
+#plt.legend()
 plt.tight_layout()
 plt.show()
 
+#%%
+import seaborn as sns
+import statsmodels.api as sm
+from statsmodels.robust.robust_linear_model import RLM
+
+sns.set_context('paper', font_scale = 1.0)
+
+# Filter out non-positive values before plotting
+df_plot = df[(df['gamma_mean'] > 0) & (df['superelevation_mean'] > 0)].copy()
+
+# Fit Robust OLS to the data
+X = sm.add_constant(df_plot['gamma_mean'])  # adding a constant
+model = RLM(df_plot['superelevation_mean'], X, M=sm.robust.norms.HuberT())
+results = model.fit()
+
+# Scatter plot for mean ridge height vs mean ridge width using seaborn
+plt.figure(figsize=(6, 3))
+sns.scatterplot(x='gamma_mean', y='superelevation_mean', hue='dist_out', data=df_plot)
+plt.xlabel(r'$\gamma$')
+plt.ylabel(r'$\beta$')
+
+# Plot the Robust OLS fit
+#plt.plot(df_plot['gamma_mean'], results.fittedvalues, color='r', lw=2, ls='--', label='Robust OLS Fit')
+#plt.legend()
+plt.tight_layout()
+plt.show()
 #%%
 cross_section_stats = pd.read_parquet(f'cross_section_stats_{name}.parquet')
 

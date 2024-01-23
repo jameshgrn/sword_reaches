@@ -1,5 +1,5 @@
 #%%
-from geometric_operations import perform_geometric_operations
+from geometric_operations import perform_geometric_operations, calculate_mean_direction
 from gee_sampler import perform_cross_section_sampling
 import uuid
 import ee
@@ -33,8 +33,8 @@ sql = f"""
     """
 df = gpd.read_postgis(sql, engine, geom_col='geom', crs='EPSG:4326')
 
-random_reach_id = 61569000491
-name = "A002_03_4"
+random_reach_id = 62269900501
+name = "B1"
 
 # Create a GeoDataFrame for the result with the correct geometry column and CRS
 result = gpd.GeoDataFrame(columns=df.columns, geometry='geom', crs='EPSG:4326')
@@ -109,7 +109,6 @@ plot_gdf = node_gdf.copy().to_crs('EPSG:4326')
 plot_gdf.plot(ax=ax, column='width', cmap='jet', legend=True, markersize=1)
 bounds= plot_gdf.total_bounds
 ax.set_extent([bounds[0], bounds[2], bounds[1], bounds[3]])
-
 cross_section_points = perform_geometric_operations(node_gdf)
 cross_section_points = cross_section_points.to_crs('EPSG:4326')
 osm_background = cimgt.GoogleTiles(style='satellite')
@@ -119,12 +118,11 @@ plot_gdf = cross_section_points.copy().to_crs('EPSG:4326')
 plot_gdf.plot(ax=ax, column='width', cmap='jet', legend=True, markersize=1)
 bounds= plot_gdf.total_bounds
 ax.set_extent([bounds[0], bounds[2], bounds[1], bounds[3]])
-
 # Generate a random UUID
 unique_id = uuid.uuid4()
 unique_id_str = str(unique_id)
 all_elevations_gdf = perform_cross_section_sampling(cross_section_points, unique_id_str)
-all_elevations_gdf.to_parquet(f'all_elevations_gdf_{name}.parquet')
+all_elevations_gdf.to_parquet(f'data/all_elevations_gdf_{name}.parquet')
 #%%
 from scipy.stats import kurtosis
 
@@ -180,7 +178,7 @@ cross_section_stats = all_elevations_gdf.merge(cross_section_stats, on='cross_id
 cross_section_stats = gpd.GeoDataFrame(cross_section_stats, geometry='geometry')
 
 # Save the DataFrame to a Parquet file
-cross_section_stats.to_parquet(f'cross_section_stats_{name}.parquet')
+cross_section_stats.to_parquet(f'data/cross_section_stats_{name}.parquet')
 #%%
 # # Plotting
 # plt.figure(figsize=(10, 10))

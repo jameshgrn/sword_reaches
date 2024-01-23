@@ -77,12 +77,28 @@ def calculate_distance_along_cross_section(gdf):
 
     return gdf
 
+def calculate_mean_direction(gdf):
+    angles = []
+    for line in gdf.geometry:
+        if line and len(line.coords) > 1:
+            start, end = line.coords[:2]
+            angle = np.arctan2(end[1] - start[1], end[0] - start[0])
+            angles.append(angle)
+    mean_angle = np.mean(angles)
+    return mean_angle
+
 def perform_geometric_operations(node_gdf):
-    # Select nodes based on meander length and sinuosity
     node_gdf_w_azimuth = calculate_azimuth(node_gdf)
+    # mean_direction = calculate_mean_direction(node_gdf_w_azimuth)
+    # if n_sections is not None and 0 < n_sections < len(node_gdf_w_azimuth):
+    #     node_gdf_w_azimuth['azimuth_diff'] = np.abs(node_gdf_w_azimuth['azimuth'] - mean_direction)
+    #     node_gdf_w_azimuth = node_gdf_w_azimuth.nsmallest(n_sections, 'azimuth_diff')
     sword_cross_sections = create_cross_sections(node_gdf_w_azimuth)
     cross_section_points = create_cross_section_points(sword_cross_sections)
     cross_section_points['cross_id'] = cross_section_points.groupby(['node_id', 'reach_id']).ngroup()
     cross_section_points = calculate_distance_along_cross_section(cross_section_points)
     return cross_section_points
+
+
+
 
