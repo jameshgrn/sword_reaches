@@ -37,7 +37,7 @@ cross_sections = organize_data_by_reach_and_node(sword_data_gdf)
 def compute_attributes(df, labeled_points):
     df.set_index('dist_along', inplace=True, drop=False)
 
-    # Slope
+    # Slope_r calculation
     df['slope_r'] = np.abs(df['elevation'].diff()) / df.index.to_series().diff()
     df['slope_r'].iloc[0] = np.abs(df['elevation'].iloc[1] - df['elevation'].iloc[0])
 
@@ -48,9 +48,9 @@ def compute_attributes(df, labeled_points):
         df['curvature'].iloc[1] = (df['curvature'].iloc[0] + df['curvature'].iloc[2]) / 2
 
     # Extract attributes
-    position_dependent_attrs = ['elevation', 'slope_r', 'slope', 'curvature', 'dist_along', 'dist_to_river_center']
+    position_dependent_attrs = ['elevation', 'slope_r', 'curvature', 'dist_along', 'dist_to_river_center']
     global_attributes = ['width', 'width_var', 'sinuosity', 'max_width', 'dist_out',
-                         'n_chan_mod', 'n_chan_max', 'facc', 'meand_len', 'type', 'reach_id', 'node_id']
+                         'n_chan_mod', 'n_chan_max', 'facc', 'meand_len', 'type', 'reach_id', 'node_id', 'slope']
 
     attr_values = {}
 
@@ -62,7 +62,7 @@ def compute_attributes(df, labeled_points):
                 key_name = f"{label}_{idx + 1}_{attr}" if len(positions) > 1 else f"{label}_{attr}"
                 attr_values[key_name] = df.iloc[closest_position][attr]
 
-    # Extract global attributes
+    # Extract global attributes including 'slope'
     first_row = df.iloc[0]
     for attr in global_attributes:
         attr_values[attr] = first_row[attr]

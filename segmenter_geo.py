@@ -33,8 +33,8 @@ sql = f"""
     """
 df = gpd.read_postgis(sql, engine, geom_col='geom', crs='EPSG:4326')
 
-random_reach_id = 62266401931
-name = "3A26"
+random_reach_id = 61569000491
+name = "A002_03_4"
 
 # Create a GeoDataFrame for the result with the correct geometry column and CRS
 result = gpd.GeoDataFrame(columns=df.columns, geometry='geom', crs='EPSG:4326')
@@ -190,30 +190,5 @@ cross_section_stats.to_parquet(f'cross_section_stats_{name}.parquet')
 # plt.title('Slope vs Relief')
 # plt.show()
 
-# Define the number of rows and columns for the subplot
-n_rows = 4
-n_cols = 5
-
-# Create a figure and axes for the subplot
-fig, axs = plt.subplots(n_rows, n_cols, figsize=(20, 16))
-
-# List of variables to plot
-variables = ['elevation_mean', 'elevation_var', 'elevation_skew', 'elevation_kurtosis', 'elevation_median', 'elevation_std', 'slope_mean', 'slope_std', 'slope_skew', 'slope_kurtosis', 'relief', 'azimuth_range']
-
-# Iterate over each subplot and create a scatter plot with lowess fit
-for i, ax in enumerate(axs.flatten()):
-    if i < len(variables):
-        sns.lineplot(x='dist_out', y=variables[i], data=cross_section_stats, ax=ax)
-        lowess_results = lowess(cross_section_stats[variables[i]], cross_section_stats['dist_out'], frac=0.20)
-        ax.plot(lowess_results[:, 0], lowess_results[:, 1], color='red')
-        ax.set_title(variables[i])
-        ax.invert_xaxis()
-
-# Remove empty subplots
-for i in range(len(variables), n_rows*n_cols):
-    fig.delaxes(axs.flatten()[i])
-
-plt.tight_layout()
-plt.show()
 
 # %%
