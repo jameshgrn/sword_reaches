@@ -2,3 +2,4 @@ leveefinders-a9d0bde21676.json
 *.parquet.history/
 *.parquet
 .history/
+.DS_Store

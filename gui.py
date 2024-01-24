@@ -240,7 +240,7 @@ def label_cross_section(df):
 
 
 # Define n
-n = 1  # adjust this value to skip cross sections
+n = 10  # adjust this value to skip cross sections
 labeled_data = []
 
 total_cross_sections_to_process = len(cross_sections[::n])
