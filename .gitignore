@@ -3,3 +3,4 @@ leveefinders-a9d0bde21676.json
 *.parquet
 .history/
 .DS_Store
+last_processed.txt

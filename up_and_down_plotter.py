@@ -14,8 +14,8 @@ warnings.filterwarnings('ignore')
 import os
 from shapely import wkb
 import numpy as np
-name = "AFR"
-df = pd.read_csv(f'data/{name}_output_old.csv', header=0, sep=',')
+name = "B1"
+df = pd.read_csv(f'data/{name}_output.csv', header=0, sep=',')
 
 #df = pd.read_csv("/Users/jakegearon/PycharmProjects/NDVI_Sinuosity/B9_outputFULL.csv", header=0, sep=',')
 
@@ -44,7 +44,7 @@ ridge_width = df['floodplain2_dist_to_river_center'] + df['floodplain1_dist_to_r
 
 #### GAMMA ####
 # Convert parent_channel_slope from m/km to m/m
-df['channel_slope'] = df['channel_slope'] / 1000
+df['slope'] = df['slope'] / 1000
 
 # Calculate slope for ridge1
 ridge1_slope = df.apply(lambda row: (row['ridge1_elevation'] - row['floodplain1_elevation']) / abs(row['ridge1_dist_along']), axis=1)
@@ -54,18 +54,19 @@ df['ridge1_slope'] = ridge1_slope
 df['ridge2_slope'] = df.apply(lambda row: (row['ridge2_elevation'] - row['floodplain2_elevation']) / abs(row['ridge2_dist_along']), axis=1)
 
 # Calculate gamma values
-df['gamma1'] = np.abs(df['ridge1_slope']) / df['channel_slope']
-df['gamma2'] = np.abs(df['ridge2_slope']) / df['channel_slope']
+df['gamma1'] = np.abs(df['ridge1_slope']) / df['slope']
+df['gamma2'] = np.abs(df['ridge2_slope']) / df['slope']
 
 # Calculate mean gamma
 df['gamma_mean'] = df[['gamma1', 'gamma2']].mean(axis=1, skipna=True)
 
 
-df = df[df['gamma_mean'] < 100]
-df = df[df['gamma_mean'] > 0]
+df = df[df['gamma_mean'] < 300]
+df = df[df['superelevation_mean'] < 10]
+# df = df[df['gamma_mean'] > 0]
 
 # Computing theta
-df['theta'] = df['gamma_mean'] * df['superelevation_mean']
+df['lambda'] = df['gamma_mean'] * df['superelevation_mean']
 # Calculate ridge height for ridge1 and ridge2
 df['ridge1_height'] = np.abs(df['ridge1_elevation'] - df['floodplain1_elevation'])
 df['ridge2_height'] = np.abs(df['ridge2_elevation'] - df['floodplain2_elevation'])
@@ -105,10 +106,10 @@ ax2.set_xlabel('Distance from outlet (m)')
 ax2.set_ylabel('Gamma Mean')
 ax2.invert_xaxis()  # Reverse the x-axis
 
-# Plot theta on the third plot
-ax3.scatter(df['dist_out'], df['theta'], color='w', marker='^', edgecolor='k', s=100)
+# Plot lambda on the third plot
+ax3.scatter(df['dist_out'], df['lambda'], color='w', marker='^', edgecolor='k', s=100)
 ax3.set_xlabel('Distance from outlet (m)')
-ax3.set_ylabel('Theta')
+ax3.set_ylabel('Lambda')
 ax3.invert_xaxis()  # Reverse the x-axis
 
 # Add vertical lines and set yscale to log for all plots
@@ -131,7 +132,7 @@ smoothed2 = lowess(df['gamma_mean'], df['dist_out'], frac=frac)
 ax2.plot(smoothed2[:, 0], smoothed2[:, 1], color='orange')
 
 # For theta
-smoothed3 = lowess(df['theta'], df['dist_out'], frac=frac)
+smoothed3 = lowess(df['lambda'], df['dist_out'], frac=frac)
 ax3.plot(smoothed3[:, 0], smoothed3[:, 1], 'r-')
 
 plt.tight_layout()
@@ -186,7 +187,7 @@ results = model.fit()
 
 # Scatter plot for mean ridge height vs mean ridge width using seaborn
 plt.figure(figsize=(6, 3))
-sns.scatterplot(x='gamma_mean', y='superelevation_mean', hue='dist_out', data=df_plot)
+sns.scatterplot(x='gamma_mean', y='superelevation_mean', hue=df['slope'], data=df_plot)
 plt.xlabel(r'$\gamma$')
 plt.ylabel(r'$\beta$')
 
