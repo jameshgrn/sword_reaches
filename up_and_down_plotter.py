@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore')
 import os
 from shapely import wkb
 import numpy as np
-name = "B1"
+name = "VENEZ_2023_W"
 df = pd.read_csv(f'data/{name}_output.csv', header=0, sep=',')
 
 #df = pd.read_csv("/Users/jakegearon/PycharmProjects/NDVI_Sinuosity/B9_outputFULL.csv", header=0, sep=',')
@@ -61,8 +61,8 @@ df['gamma2'] = np.abs(df['ridge2_slope']) / df['slope']
 df['gamma_mean'] = df[['gamma1', 'gamma2']].mean(axis=1, skipna=True)
 
 
-df = df[df['gamma_mean'] < 300]
-df = df[df['superelevation_mean'] < 10]
+df = df[df['gamma_mean'] < 1000]
+# df = df[df['superelevation_mean'] < 10]
 # df = df[df['gamma_mean'] > 0]
 
 # Computing theta
@@ -197,7 +197,7 @@ plt.ylabel(r'$\beta$')
 plt.tight_layout()
 plt.show()
 #%%
-cross_section_stats = pd.read_parquet(f'cross_section_stats_{name}.parquet')
+cross_section_stats = pd.read_parquet(f'data/cross_section_stats_{name}.parquet')
 
 # Define the number of rows and columns for the subplot
 n_rows = 4

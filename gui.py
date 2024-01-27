@@ -15,7 +15,7 @@ from shapely.geometry import Point
 import cartopy.crs as ccrs
 import cartopy.io.img_tiles as cimgt
 
-name = "B1"
+name = "VENEZ_2023_W"
 
 # Load the data
 sword_data_gdf = gpd.read_parquet(f'data/all_elevations_gdf_{name}.parquet')
@@ -240,7 +240,7 @@ def label_cross_section(df):
 
 
 # Define n
-n = 10  # adjust this value to skip cross sections
+n = 5  # adjust this value to skip cross sections
 labeled_data = []
 
 total_cross_sections_to_process = len(cross_sections[::n])
@@ -261,12 +261,12 @@ for idx in range(start_idx, len(cross_sections), n):
     # If no points are labeled and it's the first cross-section, save the empty dataframe
     if idx == 0 and all(not v for v in labeled_points.values()):
         empty_df = get_empty_dataframe_with_columns()
-        empty_df.to_csv(f"{name}_output.csv", index = False)
+        empty_df.to_csv(f"data/{name}_output.csv", index = False)
     else:
         df = compute_distance_to_river_center(df, labeled_points)
         labeled_data.append((df, labeled_points))
         # Update and save to CSV after every cross section
-        update_and_save_to_csv(df, labeled_points, filename = f"{name}_output.csv")
+        update_and_save_to_csv(df, labeled_points, filename = f"data/{name}_output.csv")
         save_last_processed_index(idx)
 
 # %%
