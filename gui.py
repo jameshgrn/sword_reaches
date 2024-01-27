@@ -15,7 +15,7 @@ from shapely.geometry import Point
 import cartopy.crs as ccrs
 import cartopy.io.img_tiles as cimgt
 
-name = "VENEZ_2023_W"
+name = "B14"
 
 # Load the data
 sword_data_gdf = gpd.read_parquet(f'data/all_elevations_gdf_{name}.parquet')

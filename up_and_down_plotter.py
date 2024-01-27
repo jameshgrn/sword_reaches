@@ -14,77 +14,10 @@ warnings.filterwarnings('ignore')
 import os
 from shapely import wkb
 import numpy as np
-name = "VENEZ_2023_W"
-df = pd.read_csv(f'data/{name}_output.csv', header=0, sep=',')
+from format_funcs import process_data
 
-#df = pd.read_csv("/Users/jakegearon/PycharmProjects/NDVI_Sinuosity/B9_outputFULL.csv", header=0, sep=',')
-
-# Reflecting values when only ridge1 exists and ridge2 does not
-mask_only_ridge1 = (~df['ridge1_elevation'].isna()) & (df['ridge2_elevation'].isna())
-df.loc[mask_only_ridge1, 'ridge2_elevation'] = df.loc[mask_only_ridge1, 'ridge1_elevation']
-df.loc[mask_only_ridge1, 'floodplain2_elevation'] = df.loc[mask_only_ridge1, 'floodplain1_elevation']
-df.loc[mask_only_ridge1, 'ridge2_dist_along'] = -df.loc[mask_only_ridge1, 'ridge1_dist_along']
-df.loc[mask_only_ridge1, 'floodplain2_dist_to_river_center'] = -df.loc[mask_only_ridge1, 'floodplain1_dist_to_river_center']
-
-#### SUPERELEVATION ####
-
-# Calculate superelevation for ridge1 and ridge2
-df['superelevation1'] = (df['ridge1_elevation'] - df['floodplain1_elevation']) / (df['ridge1_elevation'] - df['channel_elevation'])
-df['superelevation2'] = (df['ridge2_elevation'] - df['floodplain2_elevation']) / (df['ridge2_elevation'] - df['channel_elevation'])
-
-# Average the superelevation values
-df['superelevation_mean'] = (df['superelevation1'] + df['superelevation2']) / 2
-
-# Remove rows with negative superelevation values
-df = df[(df['superelevation1'] >= 0) & (df['superelevation2'] >= 0)]
-
-#### RIDGE WIDTH ####
-# Computing ridge width
-ridge_width = df['floodplain2_dist_to_river_center'] + df['floodplain1_dist_to_river_center']
-
-#### GAMMA ####
-# Convert parent_channel_slope from m/km to m/m
-df['slope'] = df['slope'] / 1000
-
-# Calculate slope for ridge1
-ridge1_slope = df.apply(lambda row: (row['ridge1_elevation'] - row['floodplain1_elevation']) / abs(row['ridge1_dist_along']), axis=1)
-df['ridge1_slope'] = ridge1_slope
-
-# Since ridge2 data is mirrored from ridge1 when missing, we use the same calculation for ridge2_slope
-df['ridge2_slope'] = df.apply(lambda row: (row['ridge2_elevation'] - row['floodplain2_elevation']) / abs(row['ridge2_dist_along']), axis=1)
-
-# Calculate gamma values
-df['gamma1'] = np.abs(df['ridge1_slope']) / df['slope']
-df['gamma2'] = np.abs(df['ridge2_slope']) / df['slope']
-
-# Calculate mean gamma
-df['gamma_mean'] = df[['gamma1', 'gamma2']].mean(axis=1, skipna=True)
-
-
-df = df[df['gamma_mean'] < 1000]
-# df = df[df['superelevation_mean'] < 10]
-# df = df[df['gamma_mean'] > 0]
-
-# Computing theta
-df['lambda'] = df['gamma_mean'] * df['superelevation_mean']
-# Calculate ridge height for ridge1 and ridge2
-df['ridge1_height'] = np.abs(df['ridge1_elevation'] - df['floodplain1_elevation'])
-df['ridge2_height'] = np.abs(df['ridge2_elevation'] - df['floodplain2_elevation'])
-
-# Assuming ridge_width is the total width between floodplain1 and floodplain2,
-# if you need individual widths, you would need to define how to calculate them.
-# For example, if you have the distance from each ridge to the river center, you could use:
-df['ridge1_width'] = df['floodplain1_dist_to_river_center'] * 2  # Assuming symmetry around the river center
-df['ridge2_width'] = df['floodplain2_dist_to_river_center'] * 2  # Assuming symmetry around the river center
-
-# If the above assumption is not correct, please provide the correct method or data to calculate individual ridge widths.
-#drop inf or nan theta values
-df = df.replace([np.inf, -np.inf], np.nan)
-#df = df.dropna(subset=['theta'])
-
-# df = df[df['dist_out'] > 3.950e6]
-# Drop rows with NaN values (if desired at this stage)
-### three subplots
+name = "B14"
+df = process_data(f'data/{name}.csv')
 
  #%%
 import pandas as pd

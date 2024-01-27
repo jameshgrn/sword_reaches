@@ -32,8 +32,8 @@ sql = f"""
     SELECT * FROM sword_reachesv16;
     """
 df = gpd.read_postgis(sql, engine, geom_col='geom', crs='EPSG:4326')
-random_reach_id = 62269201081
-name = "B14"
+random_reach_id = 61563600141
+name = "RioPauto"
 
 # Create a GeoDataFrame for the result with the correct geometry column and CRS
 result = gpd.GeoDataFrame(columns=df.columns, geometry='geom', crs='EPSG:4326')
