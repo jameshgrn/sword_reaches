@@ -16,8 +16,10 @@ from shapely import wkb
 import numpy as np
 from format_funcs import process_data
 
-name = "B14"
-df = process_data(f'data/{name}.csv')
+name = "RioPauto"
+max_gamma = 1000
+max_superelevation = 500
+df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
 
  #%%
 import pandas as pd
@@ -46,8 +48,8 @@ ax3.set_ylabel('Lambda')
 ax3.invert_xaxis()  # Reverse the x-axis
 
 # Add vertical lines and set yscale to log for all plots
-# for ax in [ax1, ax2, ax3]:
-#     ax.set_yscale('log')
+for ax in [ax1, ax2, ax3]:
+    ax.set_yscale('log')
 
 ax1.legend(ncol=1, fontsize=10, loc='upper left')
 ax2.legend(ncol=1, fontsize=10, loc='upper left')
@@ -77,26 +79,26 @@ sns.set_context('paper', font_scale = 1.0)
 import statsmodels.api as sm
 
 # Calculate the mean of ridge heights and widths
-df['ridge_height_mean'] = df[['ridge1_height', 'ridge2_height']].mean(axis=1)
-df['ridge_width_mean'] = df[['ridge1_width', 'ridge2_width']].mean(axis=1)
+# df['ridge_height_mean'] = df[['ridge1_height', 'ridge2_height']].mean(axis=1)
+# df['ridge_width_mean'] = df[['ridge1_width', 'ridge2_width']].mean(axis=1)
 
 # Filter out non-positive values before plotting
-df_plot = df[(df['ridge_height_mean'] > 0) & (df['ridge_width_mean'] > 0)].copy()
+df_plot = df[(df['ridge_height_mean'] > 0) & (df['ridge_width'] > 0)].copy()
 
 # Fit OLS to the data
-X = sm.add_constant(df_plot['ridge_width_mean'])  # adding a constant
+X = sm.add_constant(df_plot['ridge_width'])  # adding a constant
 model = sm.OLS(df_plot['ridge_height_mean'], X)
 results = model.fit()
 
 # Scatter plot for mean ridge height vs mean ridge width using seaborn
 plt.figure(figsize=(6, 3))
-sns.scatterplot(x='ridge_width_mean', y='ridge_height_mean', hue='dist_out', data=df_plot)
+sns.scatterplot(x='ridge_width', y='ridge_height_mean', hue='dist_out', data=df_plot)
 plt.xlabel('Mean Ridge Width (m)')
 plt.ylabel('Mean Ridge Height (m)')
 plt.title('Mean Ridge Width vs Mean Ridge Height')
 
 # Plot the OLS fit
-plt.plot(df_plot['ridge_width_mean'], results.fittedvalues, color='r', lw=2, ls='--', label='OLS Fit')
+plt.plot(df_plot['ridge_width'], results.fittedvalues, color='r', lw=2, ls='--', label='OLS Fit')
 plt.ylim(top=10)
 
 #plt.legend()
@@ -127,6 +129,7 @@ plt.ylabel(r'$\beta$')
 # Plot the Robust OLS fit
 #plt.plot(df_plot['gamma_mean'], results.fittedvalues, color='r', lw=2, ls='--', label='Robust OLS Fit')
 #plt.legend()
+#plt.loglog()
 plt.tight_layout()
 plt.show()
 #%%

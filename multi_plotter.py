@@ -6,7 +6,6 @@ import geopandas as gpd
 import matplotlib
 matplotlib.use('Qt5Agg')
 from sqlalchemy import create_engine
-from utils import compute_along_track_distance
 import warnings
 warnings.filterwarnings('ignore')
 import os
@@ -19,14 +18,14 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 sns.set_context('paper', font_scale = 1.1)
 sns.set_style('whitegrid')
 
-def plot_lambda(names, avulsion_dist_out, max_gamma=1000, max_superelevation=30, frac=.3):
+def plot_lambda(avulsion_data, max_gamma=1000, max_superelevation=30, frac=.3):
     # Determine the number of rows needed based on the number of names and a max of 4 columns
-    num_plots = len(names)
+    num_plots = len(avulsion_data)
     num_columns = min(num_plots, 4)
     num_rows = (num_plots + num_columns - 1) // num_columns  # Ceiling division to get number of rows needed
 
     fig, axs = plt.subplots(num_rows, num_columns, figsize=(3*num_columns, 3*num_rows), squeeze=False)
-    for (name, dist_out), ax in zip(zip(names, avulsion_dist_out), axs.flatten()):
+    for name, dist_out in avulsion_data.items():
         print(f'Processing {name}...')
         df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
 
@@ -35,6 +34,9 @@ def plot_lambda(names, avulsion_dist_out, max_gamma=1000, max_superelevation=30,
 
         # Compute the LOWESS smoothed curve for lambda
         smoothed_lambda = lowess(df['lambda'], df['dist_out'], frac=frac)
+
+        # Find the corresponding axis for plotting
+        ax = axs.flatten()[list(avulsion_data.keys()).index(name)]
 
         # Plotting the scatterplot and the LOWESS smoothed curve
         sns.scatterplot(data=df, x='dist_out', y='lambda', color='#26C6DA', marker='^', edgecolor='k', s=100, ax=ax)
@@ -52,10 +54,17 @@ def plot_lambda(names, avulsion_dist_out, max_gamma=1000, max_superelevation=30,
     plt.tight_layout()
     plt.show()
 
-# Example usage with zipped names and avulsion distances:
-names = ["B14", "B1", "VENEZ_2023", "VENEZ_2023_W", "V5", "V7", "V11", "SAMBAO"]
-avulsion_distances = [3640772, 4403519, 178286, 444137, 2490295, 2085706, 1869058, 48558]
-avulsion_dist_out = [x / 1000 for x in avulsion_distances]  # Convert to kilometers
-plot_lambda(names, avulsion_dist_out)
+# Example usage with names and avulsion distances as a dictionary:
+avulsion_data = {
+    "B14": 3640.772,
+    "B1": 4403.519,
+    "VENEZ_2023": 177.7,
+    "VENEZ_2023_W": 444.137,
+    "V5": 2490.295,
+    "V7": 2085.706,
+    "V11": 1869.058,
+    "RioPauto": 2224.554
+}
+plot_lambda(avulsion_data)
 
 # %%

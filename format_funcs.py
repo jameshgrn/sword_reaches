@@ -35,6 +35,19 @@ def process_data(csv_filepath, max_gamma=None, max_superelevation=None):
 
     # Since ridge2 data is mirrored from ridge1 when missing, we use the same calculation for ridge2_slope
     df['ridge2_slope'] = df.apply(lambda row: (row['ridge2_elevation'] - row['floodplain2_elevation']) / abs(row['ridge2_dist_along']), axis=1)
+    
+        # Calculate ridge1_height and ridge2_height
+    df['ridge1_height'] = df['ridge1_elevation'] - df['floodplain1_elevation']
+    df['ridge2_height'] = df['ridge2_elevation'] - df['floodplain2_elevation']
+
+    # Calculate ridge_height_mean
+    df['ridge_height_mean'] = (df['ridge1_height'] + df['ridge2_height']) / 2
+
+    # Calculate ridge_slope_mean
+    df['ridge_slope_mean'] = (df['ridge1_slope'] + df['ridge2_slope']) / 2
+    
+    df['ridge_width'] = df['floodplain1_dist_to_river_center'] + df['floodplain2_dist_to_river_center']
+
 
     # Calculate gamma values
     df['gamma1'] = np.abs(df['ridge1_slope']) / df['slope']
@@ -50,8 +63,6 @@ def process_data(csv_filepath, max_gamma=None, max_superelevation=None):
     # Computing theta
     df['lambda'] = df['gamma_mean'] * df['superelevation_mean']
 
-    # Continue with the rest of the processing...
-    # ...
 
     return df
 

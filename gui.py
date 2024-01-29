@@ -15,7 +15,7 @@ from shapely.geometry import Point
 import cartopy.crs as ccrs
 import cartopy.io.img_tiles as cimgt
 
-name = "B14"
+name = "VENEZ_2023_W"
 
 # Load the data
 sword_data_gdf = gpd.read_parquet(f'data/all_elevations_gdf_{name}.parquet')
@@ -240,7 +240,7 @@ def label_cross_section(df):
 
 
 # Define n
-n = 5  # adjust this value to skip cross sections
+n = 1  # adjust this value to skip cross sections
 labeled_data = []
 
 total_cross_sections_to_process = len(cross_sections[::n])

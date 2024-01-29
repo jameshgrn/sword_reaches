@@ -15,6 +15,10 @@ import pandas as pd
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from shapely.geometry import shape
 import json
+
+starting_reach_id = 61204300171
+name = "VENEZ_2023_W"
+
 # Define the PostgreSQL connection parameters
 db_params = {
     'dbname': 'jakegearon',
@@ -32,8 +36,7 @@ sql = f"""
     SELECT * FROM sword_reachesv16;
     """
 df = gpd.read_postgis(sql, engine, geom_col='geom', crs='EPSG:4326')
-random_reach_id = 61563600141
-name = "RioPauto"
+
 
 # Create a GeoDataFrame for the result with the correct geometry column and CRS
 result = gpd.GeoDataFrame(columns=df.columns, geometry='geom', crs='EPSG:4326')
@@ -42,7 +45,7 @@ result.set_crs(epsg=4326, inplace=True)
 # Keep track of visited nodes
 visited = set()
 
-def process_neighbours(current_reach_id, direction, tributaries=True):
+def process_neighbours(current_reach_id, direction):
     # Check if the current node has already been visited to prevent loops
     if current_reach_id in visited:
         return
@@ -59,33 +62,46 @@ def process_neighbours(current_reach_id, direction, tributaries=True):
         result.loc[current_reach_id, df.columns.difference(['geom'])] = row[df.columns.difference(['geom'])]
         result.loc[current_reach_id, 'geom'] = row['geom']
 
-        # Identify if the current reach is a tributary
-        upstream_neighbours = str(row['rch_id_up']).split()
-        downstream_neighbours = str(row['rch_id_dn']).split()
-        if len(upstream_neighbours) > 1 and len(downstream_neighbours) == 1:
-            if not tributaries:  # If we're not processing tributaries, stop here
-                return
+        # Determine the next reach based on the direction
+        if direction == 'up':
+            # Get upstream neighbours
+            upstream_neighbours = str(row['rch_id_up']).split()
+            # If there's more than one, find the one with the highest FACC
+            if len(upstream_neighbours) > 1:
+                # Query the dataframe for FACC values of the upstream neighbours
+                facc_values = df[df['reach_id'].isin(map(int, upstream_neighbours))][['reach_id', 'facc']]
+                # Select the neighbour with the highest FACC value
+                next_reach_id = facc_values.loc[facc_values['facc'].idxmax()]['reach_id']
+                process_neighbours(next_reach_id, direction)
+            elif len(upstream_neighbours) == 1:
+                process_neighbours(int(upstream_neighbours[0]), direction)
+        elif direction == 'down':
+            # Get downstream neighbours
+            downstream_neighbours = str(row['rch_id_dn']).split()
+            # If there's more than one, find the one with the highest FACC
+            if len(downstream_neighbours) > 1:
+                # Query the dataframe for FACC values of the downstream neighbours
+                facc_values = df[df['reach_id'].isin(map(int, downstream_neighbours))][['reach_id', 'facc']]
+                # Select the neighbour with the highest FACC value
+                next_reach_id = facc_values.loc[facc_values['facc'].idxmax()]['reach_id']
+                process_neighbours(next_reach_id, direction)
+            elif len(downstream_neighbours) == 1:
+                process_neighbours(int(downstream_neighbours[0]), direction)
 
-        # Process neighbours
-        neighbours = row['rch_id_up'] if direction == 'up' else row['rch_id_dn']
-        if pd.notnull(neighbours) and neighbours != '':
-            neighbours = [int(neighbour) for neighbour in str(neighbours).split()]
-            for neighbour in neighbours:
-                # Recursive call for each neighbour's neighbours
-                process_neighbours(neighbour, direction, tributaries)
 
-# Start the traversal from the random reach id
-# Start the traversal from the random reach id for upstream
-process_neighbours(random_reach_id, 'up', tributaries=False)
+# Start the traversal from the reach id for upstream
+process_neighbours(starting_reach_id, 'up')
 
 # Reset the visited set
 visited = set()
 
-# Start the traversal from the random reach id for downstream
-process_neighbours(random_reach_id, 'down', tributaries=False)
+# Start the traversal from the reach id for downstream
+process_neighbours(starting_reach_id, 'down')
 
 # Convert the reach_ids in result to a list
 reach_ids = set(result.index.tolist())
+
+# Get the entire dataframe
 # Convert the list to a string format suitable for SQL IN clause
 reach_ids_str = ','.join(map(str, reach_ids))
 
@@ -95,28 +111,33 @@ sql_nodes = f"""
     WHERE reach_id IN ({reach_ids_str});
     """
 node_gdf = gpd.read_postgis(sql_nodes, engine, geom_col='geom', crs='EPSG:4326')
-node_gdf = node_gdf.join(result[['slope']], on='reach_id')
-node_gdf.rename(columns={'geom': 'original_geom'}, inplace=True)
-node_gdf.set_geometry('original_geom', inplace=True)
-node_gdf.to_crs('EPSG:3857', inplace=True)
+# Assuming start_rid and end_rid are defined earlier in the code
+start_dist_out = np.floor(591668.147140227)    # Example start
+end_dist_out = np.floor(245133.489765632)    # Example end
+
+# Ensure node_gdf is sorted by 'reach_id'
+
+# Crop node_gdf based on start and end reach_id using boolean indexing without sorting
+node_gdf_cropped = node_gdf[(node_gdf['dist_out'] <= start_dist_out) & (node_gdf['dist_out'] >= end_dist_out)]
+node_gdf_cropped = node_gdf_cropped.join(result[['slope']], on='reach_id')
+node_gdf_cropped.rename(columns={'geom': 'original_geom'}, inplace=True)
+node_gdf_cropped.set_geometry('original_geom', inplace=True)
+node_gdf_cropped.to_crs('EPSG:3857', inplace=True)
+
 #%%
 # Plot the nodes
 osm_background = cimgt.GoogleTiles(style='satellite')
 ax = plt.subplot(111, projection=ccrs.PlateCarree())
 ax.add_image(osm_background, 10)
-plot_gdf = node_gdf.copy().to_crs('EPSG:4326')
+plot_gdf = node_gdf_cropped.copy().to_crs('EPSG:4326')
 plot_gdf.plot(ax=ax, column='width', cmap='jet', legend=True, markersize=1)
 bounds= plot_gdf.total_bounds
 ax.set_extent([bounds[0], bounds[2], bounds[1], bounds[3]])
-cross_section_points = perform_geometric_operations(node_gdf)
+plt.show()
+cross_section_points = perform_geometric_operations(node_gdf_cropped)
 cross_section_points = cross_section_points.to_crs('EPSG:4326')
-osm_background = cimgt.GoogleTiles(style='satellite')
-ax = plt.subplot(111, projection=ccrs.PlateCarree())
-ax.add_image(osm_background, 10)
-plot_gdf = cross_section_points.copy().to_crs('EPSG:4326')
-plot_gdf.plot(ax=ax, column='width', cmap='jet', legend=True, markersize=1)
-bounds= plot_gdf.total_bounds
-ax.set_extent([bounds[0], bounds[2], bounds[1], bounds[3]])
+
+#%%
 # Generate a random UUID
 unique_id = uuid.uuid4()
 unique_id_str = str(unique_id)
