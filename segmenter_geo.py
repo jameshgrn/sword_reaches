@@ -15,9 +15,9 @@ import pandas as pd
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from shapely.geometry import shape
 import json
-
-starting_reach_id = 61204300171
-name = "VENEZ_2023_W"
+#%%
+starting_reach_id = 64401700261
+name = "ARG_LAKE"
 
 # Define the PostgreSQL connection parameters
 db_params = {
@@ -111,13 +111,10 @@ sql_nodes = f"""
     WHERE reach_id IN ({reach_ids_str});
     """
 node_gdf = gpd.read_postgis(sql_nodes, engine, geom_col='geom', crs='EPSG:4326')
-# Assuming start_rid and end_rid are defined earlier in the code
-start_dist_out = np.floor(591668.147140227)    # Example start
-end_dist_out = np.floor(245133.489765632)    # Example end
+start_dist_out = np.floor(449481)    # Example start
+end_dist_out = np.floor(594)    # Example end
 
-# Ensure node_gdf is sorted by 'reach_id'
-
-# Crop node_gdf based on start and end reach_id using boolean indexing without sorting
+#Crop node_gdf based on start and end reach_id using boolean indexing without sorting
 node_gdf_cropped = node_gdf[(node_gdf['dist_out'] <= start_dist_out) & (node_gdf['dist_out'] >= end_dist_out)]
 node_gdf_cropped = node_gdf_cropped.join(result[['slope']], on='reach_id')
 node_gdf_cropped.rename(columns={'geom': 'original_geom'}, inplace=True)
@@ -125,7 +122,7 @@ node_gdf_cropped.set_geometry('original_geom', inplace=True)
 node_gdf_cropped.to_crs('EPSG:3857', inplace=True)
 
 #%%
-# Plot the nodes
+#Plot the nodes
 osm_background = cimgt.GoogleTiles(style='satellite')
 ax = plt.subplot(111, projection=ccrs.PlateCarree())
 ax.add_image(osm_background, 10)

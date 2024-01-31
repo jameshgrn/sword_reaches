@@ -15,7 +15,11 @@ from shapely.geometry import Point
 import cartopy.crs as ccrs
 import cartopy.io.img_tiles as cimgt
 
-name = "VENEZ_2023_W"
+# VENEZ_2023_W last processed index: 386
+
+name = "V5"
+n = 1  # adjust this value to skip cross sections
+
 
 # Load the data
 sword_data_gdf = gpd.read_parquet(f'data/all_elevations_gdf_{name}.parquet')
@@ -119,6 +123,8 @@ def get_last_processed_index(filename="last_processed.txt"):
         with open(filename, "r") as f:
             return int(f.read().strip())
     return 0
+
+
 
 def save_last_processed_index(idx, filename="last_processed.txt"):
     with open(filename, "w") as f:
@@ -240,7 +246,6 @@ def label_cross_section(df):
 
 
 # Define n
-n = 5  # adjust this value to skip cross sections
 labeled_data = []
 
 total_cross_sections_to_process = len(cross_sections[::n])
