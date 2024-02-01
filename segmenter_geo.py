@@ -139,6 +139,9 @@ cross_section_points = cross_section_points.to_crs('EPSG:4326')
 unique_id = uuid.uuid4()
 unique_id_str = str(unique_id)
 all_elevations_gdf = perform_cross_section_sampling(cross_section_points, unique_id_str)
+# Before saving the DataFrame as a Parquet file, convert 'edit_flag' to string if it's intended to be string
+all_elevations_gdf['edit_flag'] = all_elevations_gdf['edit_flag'].astype(str)
+# Now attempt to save it as Parquet
 all_elevations_gdf.to_parquet(f'data/all_elevations_gdf_{name}.parquet')
 #%%
 from scipy.stats import kurtosis

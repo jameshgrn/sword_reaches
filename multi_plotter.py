@@ -30,28 +30,36 @@ def plot_lambda(data_dict, max_gamma=1000, max_superelevation=30, frac=.3):
         ax = axs.flatten()[list(data_dict.keys()).index(name)]
         print(f'Processing {name}...')
         df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
-
+        if name == 'V7':
+            df = df[df['dist_out'] > 2080699]
+        df = df[df['lambda'] > .1]
         # Convert 'dist_out' from meters to kilometers
         df['dist_out'] = df['dist_out'] / 1000
+        df['lambda_error'] = df['lambda'] * 0.2
 
         # Compute the LOWESS smoothed curve for lambda
         smoothed_lambda = lowess(df['lambda'], df['dist_out'], frac=frac)
 
-        # Plotting the scatterplot and the LOWESS smoothed curve
-        sns.scatterplot(data=df, x='dist_out', y='lambda', color='#26C6DA', marker='^', edgecolor='k', s=100, ax=ax)
-        ax.plot(smoothed_lambda[:, 0], smoothed_lambda[:, 1], 'r-')
         ax.set_xlabel('Distance along reach (km)')
         ax.set_ylabel('Lambda')
         ax.set_yscale('log')
         ax.invert_xaxis()  # Reverse the x-axis
         ax.set_title(name)  # Set the title of the plot to the name
 
-        # Plot the avulsion_dist_out as vertical black dashed lines
-        for dist_out in details['vertical_lines']:
-            ax.axvline(x=dist_out, color='k', linestyle='--')
+        # Fill the area between the start and end of the avulsion belt across the entire y-axis
+        ax.fill_betweenx(y=[0, 1], x1=details['avulsion_belt'][0], x2=details['avulsion_belt'][1], color='gray', alpha=0.3, transform=ax.get_xaxis_transform())
 
-        # Fill the area between the start and end of the avulsion belt
-        ax.fill_betweenx(ax.get_ylim(), details['avulsion_belt'][0], details['avulsion_belt'][1], color='gray', alpha=0.5)
+        # Plot the avulsion_dist_out as vertical black dashed lines behind the data
+        for dist_out in details.get('avulsion_lines', []):
+            ax.axvline(x=dist_out, color='k', linestyle='--', zorder=1)
+
+        # Plot the crevasse_splay_dist_out as vertical dark blue dotted lines behind the data
+        for dist_out in details.get('crevasse_splay_lines', []):
+            ax.axvline(x=dist_out, color='blue', linestyle=':', zorder=1)
+
+        # Ensure scatter plot and LOWESS curve are plotted above the vertical lines
+        sns.scatterplot(data=df, x='dist_out', y='lambda', color='#26C6DA', marker='^', edgecolor='k', s=65, ax=ax, zorder=2)
+        ax.plot(smoothed_lambda[:, 0], smoothed_lambda[:, 1], 'r-', zorder=2)
 
     # Adjust layout to prevent overlap
     plt.tight_layout()
@@ -60,62 +68,50 @@ def plot_lambda(data_dict, max_gamma=1000, max_superelevation=30, frac=.3):
 # Example usage with a dictionary pre-filled with your data:
 data_dict = {
     "B14": {
-        "vertical_lines": [3621.538],  # Converted from avulsion_distances
+        "avulsion_lines": [3621.538, 3630.944, 3596.765, 3582.564],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
         "avulsion_belt": (3499.215, 3641.982)  # Converted from the range provided
     },
     "B1": {
-        "vertical_lines": [4403.519],  # Converted from avulsion_distances
+        "avulsion_lines": [4403.519],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [],  # No crevasse splay distances for B1
         "avulsion_belt": (4434.684, 4395.922)  # Converted from the range provided
     },
     "VENEZ_2023": {
-        "vertical_lines": [177.700],  # Converted from avulsion_distances
-        "avulsion_belt": (178.085, 147.912)  # Example avulsion belt range
+        "avulsion_lines": [],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [177.700, 147.912],  # Converted from crevasse_splay_distances
+        "avulsion_belt": (178.085, 146.912)  # Example avulsion belt range
     },
     "VENEZ_2023_W": {
-        "vertical_lines": [444.137],  # Converted from avulsion_distances
-        "avulsion_belt": (400, 450)  # Example avulsion belt range
+        "avulsion_lines": [],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [444.137, 475.626],  # Converted from crevasse_splay_distances
+        "avulsion_belt": (480, 440)  # Example avulsion belt range
     },
     "MAHAJAMBA": {
-        "vertical_lines": [109.403],  # Converted from avulsion_distances
+        "avulsion_lines": [109.403],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [],  # No crevasse splay distances for MAHAJAMBA
         "avulsion_belt": (136.591, 105.403)  # Converted from the range provided
     },
-    # "V5": {
-    #     "vertical_lines": [2490.295],  # Converted from avulsion_distances
-    #     "avulsion_belt": (2497.331, 2485.512)  # Example avulsion belt range
-    # },
-    # "V7": {
-    #     "vertical_lines": [2085.706],  # Converted from avulsion_distances
-    #     "avulsion_belt": (2127.714, 2042.699)  # Example avulsion belt range
-    # },
-    "V11": {
-        "vertical_lines": [1869.058, 1865.705],  # Converted from avulsion_distances
-        "avulsion_belt": (1872.683, 1852.060)  # Example avulsion belt range
+    "ARG_LAKE": {
+        "avulsion_lines": [235.852, 204.908, 190.422, 170.924],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+        "avulsion_belt": (255.346, 89.952)  # Example avulsion belt range
     },
-    "RioPauto": {
-        "vertical_lines": [2224.554],  # Converted from avulsion_distances
-        "avulsion_belt": (2250, 2150)  # Example avulsion belt range
-    }
+    "V7": {
+        "avulsion_lines": [2101.933, 2106.922],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+        "avulsion_belt": (2127.714, 2083.699)  # Example avulsion belt range
+    },
+    "V11": {
+        "avulsion_lines": [1869.058, 1865.705],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [1888.197],  # Converted from crevasse_splay_distances (SMALL SPLAY)
+        "avulsion_belt": (1872.683, 1860.060)  # Example avulsion belt range
+    },
 }
-    
 
 plot_lambda(data_dict)
-    # },
-    # "BLACK": {
-    #     "vertical_lines": [1636.147],  # Converted from avulsion_distances
-    #     "avulsion_belt": (1682.694, 1580.487)  # Converted from the range provided
-    # }
-
-
 
 # extra
 # "SAMBAO" 48558
-# B14 range 3641982 to 3499215
-# MAHAJAMBA range 136591 to 109403
-
-# # Example usage with zipped names and avulsion distances:
-# names = ["B14", "B1", "VENEZ_2023", "VENEZ_2023_W", "V5", "V7", "V11", "RioPauto", "MAHAJAMBA"]
-# avulsion_distances = [3621538, 4403519, 177700, 444137, 2490295, 2085706, 1869058, 2224554, 109403]
-
-
 
 # %%
