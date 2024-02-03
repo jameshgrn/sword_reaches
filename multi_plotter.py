@@ -115,3 +115,46 @@ plot_lambda(data_dict)
 # "SAMBAO" 48558
 
 # %%
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+df = pd.read_parquet('data/all_elevations_gdf_B1.parquet')
+plt.figure(figsize=(8, 6))
+sns.set_context('paper', font_scale = 1.5)
+plotdf = df.reset_index().query('cross_id == 500')
+sns.lineplot(data=plotdf, x='dist_along', y='elevation', color='black', lw=1.5)
+sns.scatterplot(data=plotdf, x='dist_along', y='elevation', marker='+', color='black', s=80)
+#plt.ylim(181.5, 188)
+plt.grid(axis='y', linestyle='--')
+plt.grid(axis='x', visible=False)
+plt.xlabel('Distance along cross section (m)')
+plt.ylabel('Elevation (m)')
+plt.savefig('/Users/jakegearon/CursorProjects/RORA_followup/fig3B1_cross_section.png', dpi=300)
+
+# %%
+name = "B1"
+df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
+
+sns.set_context('paper', font_scale = 1.5)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+df['dist_out'] = df['dist_out'] / 1000
+df = df[df['gamma_mean'] > 0.1]
+df = df[df['gamma_mean'] < 300]
+
+df = df[df['superelevation_mean'] > 0.01]
+df = df[df['superelevation_mean'] < 10]
+
+# Plot superelevation_mean on the first plot
+ax1.scatter(df['dist_out'], df['superelevation_mean'], edgecolor='k', color='gray', s=80, alpha=0.7, marker='o')
+ax1.set_xlabel('Distance from outlet (m)')
+ax1.set_ylabel(r'$\beta$', rotation=0, labelpad=15)
+ax1.invert_xaxis()  # Reverse the x-axis
+
+# Plot gamma_mean on the second plot
+ax2.scatter(df['dist_out'], df['gamma_mean'], color = 'pink', edgecolor='k', s=80, alpha=0.7, marker='o')
+ax2.set_xlabel('Distance from outlet (km)')
+ax2.set_ylabel(r'$\gamma$', rotation=0, labelpad=15)
+ax2.invert_xaxis()  # Reverse the x-axis
+plt.tight_layout()
+plt.show()
+# %%
