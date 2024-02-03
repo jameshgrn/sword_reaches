@@ -132,7 +132,7 @@ plt.ylabel('Elevation (m)')
 plt.savefig('/Users/jakegearon/CursorProjects/RORA_followup/fig3B1_cross_section.png', dpi=300)
 
 # %%
-name = "B1"
+name = "V11"
 df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
 
 sns.set_context('paper', font_scale = 1.5)
@@ -157,4 +157,78 @@ ax2.set_ylabel(r'$\gamma$', rotation=0, labelpad=15)
 ax2.invert_xaxis()  # Reverse the x-axis
 plt.tight_layout()
 plt.show()
+# %%
+from scipy.stats import ttest_1samp, wilcoxon
+import numpy as np
+
+# Assuming 'smoothed_lambda' is a numpy array with the first column as 'dist_out' and the second as 'lambda'
+# and 'avulsion_lines' is a list of x-values where the vertical dashed lines are drawn
+
+smoothed_lambda = lowess(df['lambda'], df['dist_out'], frac=0.3)
+
+#avulsion_lines = [235.852, 204.908, 190.422, 170.924]  # Converted from avulsion_distances
+avulsion_lines = [1869.058, 1865.705, 1888.197]  # Converted from avulsion_distances
+# Extract LOWESS fit values at avulsion points
+# Extract LOWESS fit values at avulsion points
+from scipy.stats import wilcoxon
+import numpy as np
+
+# Assuming 'smoothed_lambda' is a numpy array with the first column as 'dist_out' and the second as 'lambda'
+# and 'avulsion_lines' is a list of x-values where the vertical dashed lines are drawn
+
+# Filter out non-positive y-values from the LOWESS fit
+positive_smoothed_lambda = smoothed_lambda[smoothed_lambda[:, 1] > 0]
+
+# Extract LOWESS fit values at avulsion points, ensuring they are positive
+positive_avulsion_y_values = np.interp(avulsion_lines, positive_smoothed_lambda[:, 0], positive_smoothed_lambda[:, 1])
+
+# Sample a set of y-values from the positive LOWESS fit at regular intervals
+regular_intervals = np.linspace(positive_smoothed_lambda[:, 0].min(), positive_smoothed_lambda[:, 0].max(), len(positive_smoothed_lambda))
+regular_y_values = np.interp(regular_intervals, positive_smoothed_lambda[:, 0], positive_smoothed_lambda[:, 1])
+
+from scipy.stats import mannwhitneyu
+
+# Perform the Wilcoxon rank-sum test (Mann-Whitney U test) on the values
+stat, p_value = mannwhitneyu(positive_avulsion_y_values, regular_y_values, alternative='two-sided')
+
+# Check if the result is significant
+if p_value < 0.05:
+    print("Significant difference between avulsion points and regular intervals.")
+else:
+    print("No significant difference found.")
+
+# %%
+import numpy as np
+
+# Assuming positive_avulsion_y_values and regular_y_values are your datasets
+combined = np.concatenate([positive_avulsion_y_values, regular_y_values])
+n_avulsion = len(positive_avulsion_y_values)
+n_regular = len(regular_y_values)
+
+# Number of bootstrap samples
+n_bootstrap = 10000
+bootstrap_diffs = []
+
+for _ in range(n_bootstrap):
+    # Resample with replacement from the combined dataset
+    bootstrap_sample = np.random.choice(combined, size=n_avulsion+n_regular, replace=True)
+    
+    # Split the bootstrap sample into two parts
+    bootstrap_avulsion = bootstrap_sample[:n_avulsion]
+    bootstrap_regular = bootstrap_sample[n_avulsion:]
+    
+    # Compute the median for each bootstrap sample
+    median_avulsion = np.median(bootstrap_avulsion)
+    median_regular = np.median(bootstrap_regular)
+    
+    # Compute the difference in the medians between the two bootstrap samples
+    bootstrap_diffs.append(median_avulsion - median_regular)
+
+# Compute the observed difference from the original data
+observed_diff = np.median(positive_avulsion_y_values) - np.median(regular_y_values)
+
+# Estimate the p-value
+p_value = np.mean(np.abs(bootstrap_diffs) >= np.abs(observed_diff))
+
+print(f"Bootstrap p-value for medians: {p_value}")
 # %%

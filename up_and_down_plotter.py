@@ -170,8 +170,16 @@ random_proximities = np.zeros(n_permutations)
 for i in range(n_permutations):
     # Shuffle the peak locations
     shuffled_peaks = rng.permutation(peak_distances)
-    # Calculate the mean proximity for the shuffled data
-    random_proximities[i] = avulsion_locations.apply(lambda loc: np.min(np.abs(shuffled_peaks - loc))).mean()
+    
+    # Calculate the proximity for each avulsion location to the nearest shuffled peak
+    shuffled_proximity = avulsion_locations.apply(lambda loc: np.min(np.abs(shuffled_peaks - loc)))
+    
+    # Store the mean of these proximities
+    random_proximities[i] = shuffled_proximity.mean()
+
+    # Diagnostic print to check if the shuffled_proximity is always zero
+    if i < 10:  # Print for the first 10 permutations for inspection
+        print(f"Permutation {i}: shuffled_proximity = {shuffled_proximity.values}")
 
 # Calculate the observed mean proximity
 observed_mean_proximity = proximity_to_peaks.mean()
