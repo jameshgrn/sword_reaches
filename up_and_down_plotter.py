@@ -134,35 +134,66 @@ plt.tight_layout()
 plt.show()
 
 #%%
+import pandas as pd
+from scipy.signal import find_peaks
+from numpy.random import default_rng
 
+# Ensure 'dist_out' and 'lambda' are in the DataFrame and have the correct types
+print(df[['dist_out', 'lambda']].head())  # Preview the data
 
-#%%
-cross_section_stats = pd.read_parquet(f'data/cross_section_stats_{name}.parquet')
+# Detect peaks in the lambda values using the pandas Series directly
+peaks, _ = find_peaks(df['lambda'])
 
-# Define the number of rows and columns for the subplot
-n_rows = 4
-n_cols = 5
+# Check if peaks are detected correctly
+if len(peaks) == 0:
+    raise ValueError("No peaks detected. Check the peak detection parameters.")
 
-# Create a figure and axes for the subplot
-fig, axs = plt.subplots(n_rows, n_cols, figsize=(20, 16))
+# Print out the detected peaks for verification
+print(f"Peaks detected at indices: {peaks}")
+print(f"Peaks detected at 'dist_out' locations: {df['dist_out'].iloc[peaks].values}")
 
-# List of variables to plot
-variables = ['elevation_mean', 'elevation_var', 'elevation_skew', 'elevation_kurtosis', 'elevation_median', 'elevation_std', 'slope_mean', 'slope_std', 'slope_skew', 'slope_kurtosis', 'relief', 'azimuth_range']
+# 'avulsion_locations' are the x-coordinates of avulsions or crevasse splays
+avulsion_locations = pd.Series([4403519])  # Ensure this is a pandas Series
 
-# Iterate over each subplot and create a scatter plot with lowess fit
-for i, ax in enumerate(axs.flatten()):
-    if i < len(variables):
-        sns.lineplot(x='dist_out', y=variables[i], data=cross_section_stats, ax=ax)
-        lowess_results = lowess(cross_section_stats[variables[i]], cross_section_stats['dist_out'], frac=0.20)
-        ax.plot(lowess_results[:, 0], lowess_results[:, 1], color='red')
-        ax.set_title(variables[i])
-        ax.invert_xaxis()
+# Calculate the proximity of each avulsion location to the nearest peak
+# Convert 'dist_out' at peak locations to a NumPy array for efficient computation
+peak_distances = df['dist_out'].iloc[peaks].to_numpy()
+proximity_to_peaks = avulsion_locations.apply(lambda loc: np.min(np.abs(peak_distances - loc)))
+print(f"Proximity to peaks: {proximity_to_peaks}")
 
-# Remove empty subplots
-for i in range(len(variables), n_rows*n_cols):
-    fig.delaxes(axs.flatten()[i])
+# Permutation test setup
+rng = default_rng()
+n_permutations = 1000
+random_proximities = np.zeros(n_permutations)
 
-plt.tight_layout()
+# Perform the permutation test
+for i in range(n_permutations):
+    # Shuffle the peak locations
+    shuffled_peaks = rng.permutation(peak_distances)
+    # Calculate the mean proximity for the shuffled data
+    random_proximities[i] = avulsion_locations.apply(lambda loc: np.min(np.abs(shuffled_peaks - loc))).mean()
+
+# Calculate the observed mean proximity
+observed_mean_proximity = proximity_to_peaks.mean()
+print(f"Observed mean proximity: {observed_mean_proximity}")
+
+# Calculate the p-value
+p_value = (np.sum(random_proximities <= observed_mean_proximity) + 1) / (n_permutations + 1)
+print(f"P-value: {p_value}")
+
+# Determine significance
+alpha = 0.05
+is_significant = p_value < alpha
+print(f"Is significant: {is_significant}")
+
+# %%
+import matplotlib.pyplot as plt
+
+plt.hist(random_proximities, bins=30, alpha=0.7)
+plt.axvline(observed_mean_proximity, color='r', linestyle='dashed', linewidth=2)
+plt.title('Distribution of Mean Proximities from Permutations')
+plt.xlabel('Mean Proximity')
+plt.ylabel('Frequency')
 plt.show()
 
 # %%
