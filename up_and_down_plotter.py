@@ -132,6 +132,10 @@ plt.ylabel(r'$\beta$')
 #plt.loglog()
 plt.tight_layout()
 plt.show()
+
+#%%
+
+
 #%%
 cross_section_stats = pd.read_parquet(f'data/cross_section_stats_{name}.parquet')
 
