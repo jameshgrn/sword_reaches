@@ -19,7 +19,7 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 sns.set_context('paper', font_scale = 1.1)
 sns.set_style('whitegrid')
 
-def plot_lambda(data_dict, max_gamma=1000, max_superelevation=30, frac=.3):
+def plot_lambda(data_dict, max_gamma=1000, max_superelevation=30, frac=.2, ci=90):
     # Determine the number of rows needed based on the number of names and a max of 4 columns
     num_plots = len(data_dict)
     num_columns = min(num_plots, 4)
@@ -33,12 +33,13 @@ def plot_lambda(data_dict, max_gamma=1000, max_superelevation=30, frac=.3):
         if name == 'V7':
             df = df[df['dist_out'] > 2080699]
         df = df[df['lambda'] > .1]
+        df = df[df['lambda'] < 300]
         # Convert 'dist_out' from meters to kilometers
         df['dist_out'] = df['dist_out'] / 1000
-        df['lambda_error'] = df['lambda'] * 0.2
 
         # Compute the LOWESS smoothed curve for lambda
         smoothed_lambda = lowess(df['lambda'], df['dist_out'], frac=frac)
+        #ax.hlines(y=2, xmin=df['dist_out'].min(), xmax=df['dist_out'].max(), color='black', linestyle='--', lw=1.5, zorder=1)
 
         ax.set_xlabel('Distance along reach (km)')
         ax.set_ylabel('Lambda')
@@ -60,6 +61,7 @@ def plot_lambda(data_dict, max_gamma=1000, max_superelevation=30, frac=.3):
         # Ensure scatter plot and LOWESS curve are plotted above the vertical lines
         sns.scatterplot(data=df, x='dist_out', y='lambda', color='#26C6DA', marker='^', edgecolor='k', s=65, ax=ax, zorder=2)
         ax.plot(smoothed_lambda[:, 0], smoothed_lambda[:, 1], 'r-', zorder=2)
+        
 
     # Adjust layout to prevent overlap
     plt.tight_layout()
@@ -157,78 +159,57 @@ ax2.set_ylabel(r'$\gamma$', rotation=0, labelpad=15)
 ax2.invert_xaxis()  # Reverse the x-axis
 plt.tight_layout()
 plt.show()
-# %%
-from scipy.stats import ttest_1samp, wilcoxon
-import numpy as np
-
-# Assuming 'smoothed_lambda' is a numpy array with the first column as 'dist_out' and the second as 'lambda'
-# and 'avulsion_lines' is a list of x-values where the vertical dashed lines are drawn
-
-smoothed_lambda = lowess(df['lambda'], df['dist_out'], frac=0.3)
-
-#avulsion_lines = [235.852, 204.908, 190.422, 170.924]  # Converted from avulsion_distances
-avulsion_lines = [1869.058, 1865.705, 1888.197]  # Converted from avulsion_distances
-# Extract LOWESS fit values at avulsion points
-# Extract LOWESS fit values at avulsion points
-from scipy.stats import wilcoxon
-import numpy as np
-
-# Assuming 'smoothed_lambda' is a numpy array with the first column as 'dist_out' and the second as 'lambda'
-# and 'avulsion_lines' is a list of x-values where the vertical dashed lines are drawn
-
-# Filter out non-positive y-values from the LOWESS fit
-positive_smoothed_lambda = smoothed_lambda[smoothed_lambda[:, 1] > 0]
-
-# Extract LOWESS fit values at avulsion points, ensuring they are positive
-positive_avulsion_y_values = np.interp(avulsion_lines, positive_smoothed_lambda[:, 0], positive_smoothed_lambda[:, 1])
-
-# Sample a set of y-values from the positive LOWESS fit at regular intervals
-regular_intervals = np.linspace(positive_smoothed_lambda[:, 0].min(), positive_smoothed_lambda[:, 0].max(), len(positive_smoothed_lambda))
-regular_y_values = np.interp(regular_intervals, positive_smoothed_lambda[:, 0], positive_smoothed_lambda[:, 1])
-
-from scipy.stats import mannwhitneyu
-
-# Perform the Wilcoxon rank-sum test (Mann-Whitney U test) on the values
-stat, p_value = mannwhitneyu(positive_avulsion_y_values, regular_y_values, alternative='two-sided')
-
-# Check if the result is significant
-if p_value < 0.05:
-    print("Significant difference between avulsion points and regular intervals.")
-else:
-    print("No significant difference found.")
 
 # %%
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from format_funcs import process_data
 
-# Assuming positive_avulsion_y_values and regular_y_values are your datasets
-combined = np.concatenate([positive_avulsion_y_values, regular_y_values])
-n_avulsion = len(positive_avulsion_y_values)
-n_regular = len(regular_y_values)
+def plot_with_regplot_and_bins_enhanced(data_dict, max_gamma=1000, max_superelevation=30):
+    # Determine the number of rows and columns for the subplots based on the number of datasets
+    num_plots = len(data_dict)
+    num_columns = min(num_plots, 4)
+    num_rows = (num_plots + num_columns - 1) // num_columns
 
-# Number of bootstrap samples
-n_bootstrap = 10000
-bootstrap_diffs = []
+    fig, axs = plt.subplots(num_rows, num_columns, figsize=(4*num_columns, 4*num_rows), squeeze=False)
+    axs = axs.flatten()  # Flatten the array to easily iterate over it
 
-for _ in range(n_bootstrap):
-    # Resample with replacement from the combined dataset
-    bootstrap_sample = np.random.choice(combined, size=n_avulsion+n_regular, replace=True)
-    
-    # Split the bootstrap sample into two parts
-    bootstrap_avulsion = bootstrap_sample[:n_avulsion]
-    bootstrap_regular = bootstrap_sample[n_avulsion:]
-    
-    # Compute the median for each bootstrap sample
-    median_avulsion = np.median(bootstrap_avulsion)
-    median_regular = np.median(bootstrap_regular)
-    
-    # Compute the difference in the medians between the two bootstrap samples
-    bootstrap_diffs.append(median_avulsion - median_regular)
+    for index, (name, details) in enumerate(data_dict.items()):
+        print(f'Processing {name}...')
+        df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
+        if name == 'V7':
+            df = df[df['dist_out'] > 2080699]
+        df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
+        
+        df = df[(df['gamma_mean'] > 0.1) & (df['gamma_mean'] < 500)]
+        df = df[(df['superelevation_mean'] > 0.01) & (df['superelevation_mean'] < 40)]
+        smoothed_lambda = lowess(df['lambda'], df['dist_out'], frac=frac)
 
-# Compute the observed difference from the original data
-observed_diff = np.median(positive_avulsion_y_values) - np.median(regular_y_values)
+        ax = axs[index]
+        sns.regplot(data=df, x='dist_out', y='lambda', scatter_kws={'s': 100, 'color': '#283593', 'edgecolor': 'black'}, marker='D', fit_reg=False, x_bins=len(df)//10, ax=ax, line_kws={'capsize': 6, 'lw': 1, 'zorder': 0}, x_estimator=np.median,)
+        ax.invert_xaxis()  # Reverse the x-axis
+        ax.set_title(name)
+        ax.set_xlabel('Distance along reach (km)')
+        ax.set_yscale('log')
+        
+        ax.set_ylabel('Lambda')
 
-# Estimate the p-value
-p_value = np.mean(np.abs(bootstrap_diffs) >= np.abs(observed_diff))
+        # Plot the avulsion and crevasse splay lines
+        for dist_out in details.get('avulsion_lines', []):
+            ax.axvline(x=dist_out, color='k', linestyle='--', zorder=1, lw=2.5)
+        for dist_out in details.get('crevasse_splay_lines', []):
+            ax.axvline(x=dist_out, color='blue', linestyle=':', zorder=1, lw=2.5)
+            
+        ax.plot(smoothed_lambda[:, 0], smoothed_lambda[:, 1], 'r-', zorder=2, lw=3.5)
 
-print(f"Bootstrap p-value for medians: {p_value}")
+
+    # Adjust layout to prevent overlap and hide unused subplots
+    for ax in axs[num_plots:]:
+        ax.set_visible(False)  # Hide unused subplots
+    plt.tight_layout()
+    plt.show()
+
+# Example usage
+plot_with_regplot_and_bins_enhanced(data_dict)
 # %%
