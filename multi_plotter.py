@@ -19,6 +19,29 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 sns.set_context('paper', font_scale = 1.1)
 sns.set_style('whitegrid')
 
+import binsreg
+
+def binscatter(**kwargs):
+    # Estimate binsreg
+    est = binsreg.binsreg(**kwargs)
+    
+    # Retrieve estimates
+    df_est = pd.concat([d.dots for d in est.data_plot])
+    df_est = df_est.rename(columns={'x': kwargs.get("x"), 'fit': kwargs.get("y")})
+    
+    # Add confidence intervals
+    if "ci" in kwargs:
+        df_est = pd.merge(df_est, pd.concat([d.ci for d in est.data_plot]))
+        df_est = df_est.drop(columns=['x'])
+        df_est['ci'] = df_est['ci_r'] - df_est['ci_l']
+    
+    # Rename groups
+    if "by" in kwargs:
+        df_est['group'] = df_est['group'].astype(df[kwargs.get("by")].dtype)
+        df_est = df_est.rename(columns={'group': kwargs.get("by")})
+
+    return df_est
+
 def plot_lambda(data_dict, max_gamma=1000, max_superelevation=30, frac=.2, ci=90):
     # Determine the number of rows needed based on the number of names and a max of 4 columns
     num_plots = len(data_dict)
@@ -171,7 +194,7 @@ def plot_with_regplot_and_bins_enhanced(data_dict, max_gamma=1000, max_superelev
     num_plots = len(data_dict)
     num_columns = min(num_plots, 4)
     num_rows = (num_plots + num_columns - 1) // num_columns
-
+    frac = .20
     fig, axs = plt.subplots(num_rows, num_columns, figsize=(4*num_columns, 4*num_rows), squeeze=False)
     axs = axs.flatten()  # Flatten the array to easily iterate over it
 
@@ -182,12 +205,16 @@ def plot_with_regplot_and_bins_enhanced(data_dict, max_gamma=1000, max_superelev
             df = df[df['dist_out'] > 2080699]
         df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
         
-        df = df[(df['gamma_mean'] > 0.1) & (df['gamma_mean'] < 500)]
-        df = df[(df['superelevation_mean'] > 0.01) & (df['superelevation_mean'] < 40)]
+        #df = df[(df['gamma_mean'] > 0.1) & (df['gamma_mean'] < 500)]
+        #df = df[(df['superelevation_mean'] > 0.01) & (df['superelevation_mean'] < 40)]
         smoothed_lambda = lowess(df['lambda'], df['dist_out'], frac=frac)
 
         ax = axs[index]
-        sns.regplot(data=df, x='dist_out', y='lambda', scatter_kws={'s': 100, 'color': '#283593', 'edgecolor': 'black'}, marker='D', fit_reg=False, x_bins=len(df)//10, ax=ax, line_kws={'capsize': 6, 'lw': 1, 'zorder': 0}, x_estimator=np.median,)
+        # sns.regplot(data=df, x='dist_out', y='lambda', scatter_kws={'s': 180, 'color': '#26C6DA', 'alpha':0.7, 'edgecolor': 'black'}, marker='D', fit_reg=False, x_bins=len(df)//7, ax=ax, line_kws={'lw': 2, 'zorder': 0, 'color': 'red'}, x_estimator=np.median, lowess=True)
+        df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3))
+# Plot binned scatterplot
+        sns.scatterplot(x='dist_out', y='lambda', data=df_est, ax=ax, s=180, color='#26C6DA', alpha=0.7, edgecolor='black', marker='D', zorder=0);
+        ax.errorbar('dist_out', 'lambda', yerr='ci', data=df_est, ls='', lw=2, alpha=0.2);
         ax.invert_xaxis()  # Reverse the x-axis
         ax.set_title(name)
         ax.set_xlabel('Distance along reach (km)')
@@ -199,9 +226,9 @@ def plot_with_regplot_and_bins_enhanced(data_dict, max_gamma=1000, max_superelev
         for dist_out in details.get('avulsion_lines', []):
             ax.axvline(x=dist_out, color='k', linestyle='--', zorder=1, lw=2.5)
         for dist_out in details.get('crevasse_splay_lines', []):
-            ax.axvline(x=dist_out, color='blue', linestyle=':', zorder=1, lw=2.5)
+            ax.axvline(x=dist_out, color='k', linestyle=':', zorder=1, lw=2.5)
             
-        ax.plot(smoothed_lambda[:, 0], smoothed_lambda[:, 1], 'r-', zorder=2, lw=3.5)
+        # ax.plot(smoothed_lambda[:, 0], smoothed_lambda[:, 1], 'r-', zorder=0, lw=3.5)
 
 
     # Adjust layout to prevent overlap and hide unused subplots
@@ -212,4 +239,10 @@ def plot_with_regplot_and_bins_enhanced(data_dict, max_gamma=1000, max_superelev
 
 # Example usage
 plot_with_regplot_and_bins_enhanced(data_dict)
+# %%
+
+
+
+
+
 # %%
