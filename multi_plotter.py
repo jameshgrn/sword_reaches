@@ -19,53 +19,6 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 sns.set_context('paper', font_scale = 1.1)
 sns.set_style('whitegrid')
 
-def plot_lambda(data_dict, max_gamma=1000, max_superelevation=30, frac=.2, ci=90):
-    # Determine the number of rows needed based on the number of names and a max of 4 columns
-    num_plots = len(data_dict)
-    num_columns = min(num_plots, 4)
-    num_rows = (num_plots + num_columns - 1) // num_columns  # Ceiling division to get number of rows needed
-
-    fig, axs = plt.subplots(num_rows, num_columns, figsize=(3*num_columns, 3*num_rows), squeeze=False)
-    for name, details in data_dict.items():
-        ax = axs.flatten()[list(data_dict.keys()).index(name)]
-        print(f'Processing {name}...')
-        df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
-        if name == 'V7':
-            df = df[df['dist_out'] > 2080699]
-        df = df[df['lambda'] > .1]
-        df = df[df['lambda'] < 300]
-        # Convert 'dist_out' from meters to kilometers
-        df['dist_out'] = df['dist_out'] / 1000
-
-        # Compute the LOWESS smoothed curve for lambda
-        smoothed_lambda = lowess(df['lambda'], df['dist_out'], frac=frac)
-        #ax.hlines(y=2, xmin=df['dist_out'].min(), xmax=df['dist_out'].max(), color='black', linestyle='--', lw=1.5, zorder=1)
-
-        ax.set_xlabel('Distance along reach (km)')
-        ax.set_ylabel('Lambda')
-        ax.set_yscale('log')
-        ax.invert_xaxis()  # Reverse the x-axis
-        ax.set_title(name)  # Set the title of the plot to the name
-
-        # Fill the area between the start and end of the avulsion belt across the entire y-axis
-        ax.fill_betweenx(y=[0, 1], x1=details['avulsion_belt'][0], x2=details['avulsion_belt'][1], color='gray', alpha=0.3, transform=ax.get_xaxis_transform())
-
-        # Plot the avulsion_dist_out as vertical black dashed lines behind the data
-        for dist_out in details.get('avulsion_lines', []):
-            ax.axvline(x=dist_out, color='k', linestyle='--', zorder=1)
-
-        # Plot the crevasse_splay_dist_out as vertical dark blue dotted lines behind the data
-        for dist_out in details.get('crevasse_splay_lines', []):
-            ax.axvline(x=dist_out, color='blue', linestyle=':', zorder=1)
-
-        # Ensure scatter plot and LOWESS curve are plotted above the vertical lines
-        sns.scatterplot(data=df, x='dist_out', y='lambda', color='#26C6DA', marker='^', edgecolor='k', s=65, ax=ax, zorder=2)
-        ax.plot(smoothed_lambda[:, 0], smoothed_lambda[:, 1], 'r-', zorder=2)
-        
-
-    # Adjust layout to prevent overlap
-    plt.tight_layout()
-    plt.show()
 
 # Example usage with a dictionary pre-filled with your data:
 data_dict = {
@@ -363,8 +316,8 @@ y = bootstrapped_distribution
 
 # Plot the original large data histogram using seaborn
 main_plot = sns.histplot(np.log(large_df['lambda']), kde=True, color="#26C6DA", label="Original")
-sns.histplot(y, kde=False, color="#880E4F", alpha=1, label="Bootstrap")
-sns.histplot(y1, kde=False, color="#F48FB1", alpha=1, label="Collocated")
+#sns.histplot(y, kde=False, color="#880E4F", alpha=1, label="Bootstrap")
+sns.histplot(y1, kde=False, color="#F48FB1", alpha=1, label="Collocated", bins=20)
 
 # Add horizontal grid lines to the main plot for better readability
 plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -375,10 +328,10 @@ plt.grid(axis='y', linestyle='--', alpha=0.7)
 # Adjust the position of the inset graph
 ax_inset = inset_axes(plt.gca(), width="35%", height="35%", loc='upper left', 
                       bbox_to_anchor=(0.1, 0.05, .8, .9), bbox_transform=plt.gca().transAxes)
-sns.histplot(y, kde=False, color="#880E4F", alpha=1, ax=ax_inset)
+#sns.histplot(y, kde=False, color="#880E4F", alpha=1, ax=ax_inset)
 
 # Add horizontal grid lines to the inset for better readability
-ax_inset.grid(axis='y', linestyle='--', alpha=0.7)
+#ax_inset.grid(axis='y', linestyle='--', alpha=0.7)
 
 # Set the limits for the inset x-axis to zoom in on the bootstrap distribution
 ax_inset.set_xlim([y.min(), y.max()])
