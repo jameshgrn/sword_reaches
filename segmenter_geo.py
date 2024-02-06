@@ -16,8 +16,8 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from shapely.geometry import shape
 import json
 #%%
-starting_reach_id = 64401700261
-name = "ARG_LAKE"
+starting_reach_id = 75140100281
+name = "TRINITY"
 
 # Define the PostgreSQL connection parameters
 db_params = {
@@ -111,8 +111,8 @@ sql_nodes = f"""
     WHERE reach_id IN ({reach_ids_str});
     """
 node_gdf = gpd.read_postgis(sql_nodes, engine, geom_col='geom', crs='EPSG:4326')
-start_dist_out = np.floor(449481)    # Example start
-end_dist_out = np.floor(594)    # Example end
+start_dist_out = np.floor(185523)    # Example start
+end_dist_out = np.floor(5872)    # Example end
 
 #Crop node_gdf based on start and end reach_id using boolean indexing without sorting
 node_gdf_cropped = node_gdf[(node_gdf['dist_out'] <= start_dist_out) & (node_gdf['dist_out'] >= end_dist_out)]

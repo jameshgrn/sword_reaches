@@ -62,6 +62,11 @@ data_dict = {
         "crevasse_splay_lines": [1888.197],  # Converted from crevasse_splay_distances (SMALL SPLAY)
         "avulsion_belt": (1872.683, 1860.060)  # Example avulsion belt range
     },
+    "TRINITY": {
+        "avulsion_lines": [50.000],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+        "avulsion_belt": (55.000, 45.000)  # Example avulsion belt range
+    },
 }
 
 
@@ -97,7 +102,7 @@ def binscatter(**kwargs):
 
     return df_est
 
-def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=30):
+def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
     num_plots = len(data_dict)
     num_columns = min(num_plots, 4)
     num_rows = (num_plots + num_columns - 1) // num_columns
@@ -198,7 +203,7 @@ def extract_and_analyze_lambda_df(data_dict, max_gamma=1000, max_superelevation=
 
         # Process avulsion lines
         for line in details.get('avulsion_lines', []):
-            closest_dists = df.iloc[(df['dist_out'] - line).abs().argsort()[:10]]
+            closest_dists = df.iloc[(df['dist_out'] - line).abs().argsort()[:9]]
             lambda_values = closest_dists['lambda'].values
             for lambda_value in lambda_values:
                 name_lambda_values.append(lambda_value)
@@ -207,7 +212,7 @@ def extract_and_analyze_lambda_df(data_dict, max_gamma=1000, max_superelevation=
 
         # Process crevasse splay lines
         for line in details.get('crevasse_splay_lines', []):
-            closest_dists = df.iloc[(df['dist_out'] - line).abs().argsort()[:10]]
+            closest_dists = df.iloc[(df['dist_out'] - line).abs().argsort()[:9]]
             lambda_values = closest_dists['lambda'].values
             for lambda_value in lambda_values:
                 name_lambda_values.append(lambda_value)
@@ -251,12 +256,10 @@ for name, details in data_dict.items():
     
     # Concatenate the current df and df_est to the large DataFrames
     large_df = pd.concat([large_df, df], ignore_index=True)
+    large_df = large_df.sample(len(results_df), random_state=1997, replace=True)
     large_df_est = pd.concat([large_df_est, df_est], ignore_index=True)
 
 
-
-
-# %%
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -264,15 +267,15 @@ import numpy as np
 # Assuming large_df['lambda'] is your original large dataset
 # And results_df['Lambda Value'] contains the specific lambda values of interest
 
-plt.figure(figsize=(8, 5))
+plt.figure(figsize=(6, 3))
 
 # Log-transform the lambda values for plotting
 log_large_df_lambda = np.log(large_df['lambda'])
 log_results_df_lambda = results_df['Lambda Value'].apply(np.log)
 
 # Plot the histograms for the original and specific lambda values
-sns.histplot(log_large_df_lambda, kde=True, color="#26C6DA", label="Original")
-sns.histplot(log_results_df_lambda, kde=False, color="#F48FB1", alpha=1, label="Collocated", bins=30)
+sns.histplot(log_large_df_lambda, kde=False, color="blue", label="original", alpha=.5, edgecolor="black")
+sns.histplot(log_results_df_lambda, kde=False, color="orange", alpha=.5, label="collocated", edgecolor="black")
 
 # Calculate and plot the mean values for each dataset
 mean_log_large_df_lambda = np.mean(log_large_df_lambda)
@@ -323,44 +326,96 @@ else:
     print("The two distributions are not significantly different.")
 
 
-#%%
+
+
+
+# %%
+from scipy.stats import shapiro, mannwhitneyu
 import numpy as np
-from scipy.stats import mannwhitneyu, norm
 
-# Assuming log_original and log_bootstrapped are numpy arrays
-log_bootstrapped = y1
-combined = np.concatenate([log_original, y1])
+def perform_shapiro_test(data):
+    stat, p_value = shapiro(data)
+    return f"Shapiro-Wilk Test: Stat={stat}, p={p_value}"
 
-# Permutation test
-num_permutations = 10000
-perm_diffs = []
-for _ in range(num_permutations):
-    np.random.shuffle(combined)
-    perm_log_original = combined[:len(log_original)]
-    perm_log_bootstrapped = combined[len(log_original):]
-    perm_diff = np.mean(perm_log_original) - np.mean(perm_log_bootstrapped)
-    perm_diffs.append(perm_diff)
+log_large_df_lambda = np.log(large_df['lambda'])  # Assuming large_df['lambda'] is defined
+log_results_df_lambda = np.log(results_df['Lambda Value'])  # Assuming results_df['lambda'] is defined
 
-# Calculate p-value
-obs_diff = np.mean(log_original) - np.mean(log_bootstrapped)
-p_value = np.mean(np.abs(perm_diffs) >= np.abs(obs_diff))
-print(f"P-value from permutation test: {p_value}")
+print(perform_shapiro_test(log_large_df_lambda))
+print(perform_shapiro_test(log_results_df_lambda))
 
-# Effect size (Cohen's d)
-pooled_std = np.sqrt(((len(log_original) - 1) * np.var(log_original) + (len(log_bootstrapped) - 1) * np.var(log_bootstrapped)) / (len(log_original) + len(log_bootstrapped) - 2))
-effect_size = obs_diff / pooled_std
-print(f"Effect size (Cohen's d): {effect_size}")
+def permutation_test(x, y, num_permutations=10000):
+    combined = np.concatenate([x, y])
+    obs_diff = np.mean(x) - np.mean(y)
+    perm_diffs = [np.mean(np.random.permutation(combined)[:len(x)]) - np.mean(np.random.permutation(combined)[len(x):]) for _ in range(num_permutations)]
+    p_value = np.mean(np.abs(perm_diffs) >= np.abs(obs_diff))
+    return p_value
 
-# Bootstrap confidence interval for effect size
-bootstrapped_effect_sizes = []
-for _ in range(10000):
-    boot_log_original = np.random.choice(log_original, size=len(log_original), replace=True)
-    boot_log_bootstrapped = np.random.choice(log_bootstrapped, size=len(log_bootstrapped), replace=True)
-    boot_diff = np.mean(boot_log_original) - np.mean(boot_log_bootstrapped)
-    boot_effect_size = boot_diff / pooled_std
-    bootstrapped_effect_sizes.append(boot_effect_size)
+p_value_perm_test = permutation_test(log_large_df_lambda, log_results_df_lambda)
+print(f"P-value from permutation test: {p_value_perm_test}")
 
-conf_int = np.percentile(bootstrapped_effect_sizes, [2.5, 97.5])
+def calculate_effect_size(x, y):
+    pooled_std = np.sqrt(((len(x) - 1) * np.var(x) + (len(y) - 1) * np.var(y)) / (len(x) + len(y) - 2))
+    effect_size = (np.mean(x) - np.mean(y)) / pooled_std
+    return effect_size
+
+effect_size = calculate_effect_size(log_large_df_lambda, log_results_df_lambda)
+print(f"Effect size: {effect_size}")
+
+def bootstrap_ci_effect_size(x, y, num_bootstraps=10000, ci=95):
+    bootstrapped_effect_sizes = []
+    pooled_std = np.sqrt(((len(x) - 1) * np.var(x) + (len(y) - 1) * np.var(y)) / (len(x) + len(y) - 2))
+    for _ in range(num_bootstraps):
+        boot_x = np.random.choice(x, size=len(x), replace=True)
+        boot_y = np.random.choice(y, size=len(y), replace=True)
+        boot_diff = np.mean(boot_x) - np.mean(boot_y)
+        boot_effect_size = boot_diff / pooled_std
+        bootstrapped_effect_sizes.append(boot_effect_size)
+    conf_int = np.percentile(bootstrapped_effect_sizes, [(100-ci)/2, 100-(100-ci)/2])
+    return conf_int
+
+conf_int = bootstrap_ci_effect_size(log_large_df_lambda, log_results_df_lambda)
 print(f"95% CI for effect size: {conf_int}")
+
+U_statistic, p_value = mannwhitneyu(log_large_df_lambda, log_results_df_lambda, alternative='two-sided')
+print(f"Mann-Whitney U Statistic: {U_statistic}, p-value: {p_value}")
+
+def cohens_d(x, y):
+    diff = np.mean(x) - np.mean(y)
+    pooled_std = np.sqrt((np.var(x, ddof=1) + np.var(y, ddof=1)) / 2)
+    effect_size = diff / pooled_std
+    return effect_size
+
+d = cohens_d(log_large_df_lambda, log_results_df_lambda)
+print(f"Cohen's d: {d}")
+# %%
+def simulate_wmw_power(n1, n2, delta, tdf=5, alpha=0.05, nsim=10000):
+    """
+    Simulate Wilcoxon-Mann-Whitney test to estimate power.
+    
+    Parameters:
+    - n1, n2: Sample sizes for the two groups.
+    - delta: Location difference between the two groups.
+    - tdf: Degrees of freedom for the t-distribution.
+    - alpha: Significance level.
+    - nsim: Number of simulations.
+    
+    Returns:
+    - Estimated power of the test.
+    """
+    reject_count = 0
+    for _ in range(nsim):
+        y1 = np.random.standard_t(tdf, size=n1)
+        y2 = np.random.standard_t(tdf, size=n2) + delta
+        p_value = stats.mannwhitneyu(y1, y2, alternative='two-sided').pvalue
+        if p_value <= alpha:
+            reject_count += 1
+    return reject_count / nsim
+
+# Example usage
+n1 = len(log_large_df_lambda)
+n2 = len(log_results_df_lambda)
+delta = np.mean(log_large_df_lambda) - np.mean(log_results_df_lambda)  # Location difference
+estimated_power = simulate_wmw_power(n1, n2, delta)
+print(f"Estimated power: {estimated_power}")
 
 # %%
