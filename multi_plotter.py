@@ -64,10 +64,6 @@ data_dict = {
     },
 }
 
-plot_lambda(data_dict)
-
-# extra
-# "SAMBAO" 48558
 
 #%%
 import matplotlib.pyplot as plt
@@ -111,7 +107,7 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=30):
         ax = axs.flatten()[idx]
         print(f'Processing {name}...')
         df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
-        df = df[df['lambda'] > 0]
+        df = df[df['lambda'] > 0.0001]
         df = df[df['lambda'] < 1000]
         # Convert 'dist_out' from meters to kilometers
         df['dist_out'] = df['dist_out'] / 1000
@@ -186,7 +182,7 @@ plot_binscatter(data_dict)
 import pandas as pd
 import numpy as np
 
-def extract_and_analyze_lambda_df(data_dict, max_gamma=1000, max_superelevation=30):
+def extract_and_analyze_lambda_df(data_dict, max_gamma=1000, max_superelevation=1000):
     all_lambda_values = []  # To store lambda values across all names for overall mean calculation
     results_list = []  # To store intermediate results for DataFrame conversion
 
@@ -194,7 +190,7 @@ def extract_and_analyze_lambda_df(data_dict, max_gamma=1000, max_superelevation=
         print(f'Processing {name}...')
         # Process data and perform bin scatter analysis
         df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
-        df = df[df['lambda'] > 0]
+        df = df[df['lambda'] > 0.001]
         df = df[df['lambda'] < 1000]
         df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
 
@@ -248,7 +244,7 @@ large_df = pd.DataFrame()
 large_df_est = pd.DataFrame()
 
 for name, details in data_dict.items():
-    df = process_data(f'data/{name}_output.csv', max_gamma=500, max_superelevation=100)
+    df = process_data(f'data/{name}_output.csv', max_gamma=1000, max_superelevation=1000)
     df = df[(df['lambda'] > 0) & (df['lambda'] < 1000)]
     df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
     df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
@@ -258,94 +254,39 @@ for name, details in data_dict.items():
     large_df_est = pd.concat([large_df_est, df_est], ignore_index=True)
 
 
-# %%
-import pandas as pd
-import numpy as np
 
-def bootstrap_distribution(source_series, target_length, n_iterations=1000):
-    """
-    Generate a bootstrapped distribution of a pandas Series to a specified length.
-    
-    Parameters:
-    - source_series: pandas Series from which to bootstrap.
-    - target_length: The desired length of the bootstrapped sample.
-    - n_iterations: Number of bootstrap iterations to perform.
-    
-    Returns:
-    - bootstrapped_distribution: Array of bootstrapped sample means.
-    """
-    bootstrapped_means = []
-    for _ in range(n_iterations):
-        # Sample with replacement to the length of the target DataFrame
-        sample = source_series.sample(n=target_length, replace=True)
-        # Calculate the mean of the sample and append to the list
-        bootstrapped_means.append(sample.mean())
-    
-    return np.array(bootstrapped_means)
 
-# Assuming results_df and large_df are already defined
-source_series = results_df['Mean Lambda per Name'].apply(np.log)
-target_length = len(results_df['Mean Lambda per Name'])
-
-# Perform bootstrapping
-bootstrapped_distribution = bootstrap_distribution(source_series, target_length)
-
-# Example usage: Display the mean and standard deviation of the bootstrapped distribution
-print(f"Bootstrapped Distribution Mean: {bootstrapped_distribution.mean()}")
-print(f"Bootstrapped Distribution Std Dev: {bootstrapped_distribution.std()}")
-
-# If you want to visualize the distribution
-
-# %%
-#%%
-sns.histplot(data=np.log(large_df['lambda']), kde=True)
-sns.histplot(data=(bootstrapped_distribution), kde=True)
-plt.show()
 # %%
 import matplotlib.pyplot as plt
 import seaborn as sns
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import numpy as np
 
 # Assuming large_df['lambda'] is your original large dataset
-# And bootstrapped_distribution is the array containing your bootstrap results
+# And results_df['Lambda Value'] contains the specific lambda values of interest
 
 plt.figure(figsize=(8, 5))
 
-y1 = results_df['Mean Lambda per Name'].apply(np.log)
-y = bootstrapped_distribution
+# Log-transform the lambda values for plotting
+log_large_df_lambda = np.log(large_df['lambda'])
+log_results_df_lambda = results_df['Lambda Value'].apply(np.log)
 
-# Plot the original large data histogram using seaborn
-main_plot = sns.histplot(np.log(large_df['lambda']), kde=True, color="#26C6DA", label="Original")
-#sns.histplot(y, kde=False, color="#880E4F", alpha=1, label="Bootstrap")
-sns.histplot(y1, kde=False, color="#F48FB1", alpha=1, label="Collocated", bins=20)
+# Plot the histograms for the original and specific lambda values
+sns.histplot(log_large_df_lambda, kde=True, color="#26C6DA", label="Original")
+sns.histplot(log_results_df_lambda, kde=False, color="#F48FB1", alpha=1, label="Collocated", bins=30)
 
-# Add horizontal grid lines to the main plot for better readability
+# Calculate and plot the mean values for each dataset
+mean_log_large_df_lambda = np.mean(log_large_df_lambda)
+mean_log_results_df_lambda = np.mean(log_results_df_lambda)
+
+# Add grid, labels, legend, and title
 plt.grid(axis='y', linestyle='--', alpha=0.7)
-
-# Create an inset with a zoomed-in view of the bootstrap distribution
-# The arguments are [left, bottom, width, height] in figure coordinates (0 to 1)
-# Making the inset slightly bigger as requested
-# Adjust the position of the inset graph
-ax_inset = inset_axes(plt.gca(), width="35%", height="35%", loc='upper left', 
-                      bbox_to_anchor=(0.1, 0.05, .8, .9), bbox_transform=plt.gca().transAxes)
-#sns.histplot(y, kde=False, color="#880E4F", alpha=1, ax=ax_inset)
-
-# Add horizontal grid lines to the inset for better readability
-#ax_inset.grid(axis='y', linestyle='--', alpha=0.7)
-
-# Set the limits for the inset x-axis to zoom in on the bootstrap distribution
-ax_inset.set_xlim([y.min(), y.max()])
-
-# Add labels and title for the main plot
-# Adjust label placements to avoid overrunning text
-ax_inset.set_xlabel(r'Log($\Lambda$)', labelpad=5)
-ax_inset.set_ylabel('Count', labelpad=5)
-main_plot.axvline(x=np.log(2), color='black', linestyle='--', lw=2)
-main_plot.text(np.log(2)-.55, plt.gca().get_ylim()[1]/2, r'$\Lambda$ = 2', rotation=90, verticalalignment='center')
-main_plot.set_xlabel(r'Log($\Lambda$)', labelpad=5)
-main_plot.set_ylabel('Count', labelpad=5)
-main_plot.legend(loc='upper right')
-plt.savefig('/Users/jakegearon/CursorProjects/RORA_followup/lambda_bootstrap.png', dpi=300)
+plt.legend(loc='upper right')
+plt.axvline(x=np.log(2), color='black', linestyle='-', lw=3)
+plt.text(np.log(2)-.55, plt.gca().get_ylim()[1]/2, r'$\Lambda$ = 2', rotation=90, verticalalignment='center')
+plt.xlabel(r'Log($\Lambda$)', labelpad=5)
+plt.ylabel('Count', labelpad=5)
+# Save and show the plot
+plt.savefig('/Users/jakegearon/CursorProjects/RORA_followup/lambda_comparison.png', dpi=300)
 plt.show()
 
 
@@ -354,7 +295,7 @@ from scipy import stats
 
 log_original = np.log(large_df['lambda'])
 # Assuming log_original and log_bootstrapped are your log-transformed datasets
-U_statistic, p_value = stats.mannwhitneyu(log_original, y, alternative='two-sided')
+U_statistic, p_value = stats.mannwhitneyu(log_original, y1, alternative='two-sided')
 
 print(f"Mann-Whitney U Statistic: {U_statistic}")
 print(f"P-value: {p_value}")
@@ -387,7 +328,8 @@ import numpy as np
 from scipy.stats import mannwhitneyu, norm
 
 # Assuming log_original and log_bootstrapped are numpy arrays
-combined = np.concatenate([log_original, y])
+log_bootstrapped = y1
+combined = np.concatenate([log_original, y1])
 
 # Permutation test
 num_permutations = 10000
