@@ -28,6 +28,7 @@ pyarrow = "^14.0.2"
 pyqt5 = "^5.15.10"
 xee = "^0.0.6"
 binsreg = "^2.1.4"
+xgboost = "^2.0.3"
 
 
 [tool.poetry.group.dev.dependencies]
