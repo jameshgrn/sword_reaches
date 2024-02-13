@@ -43,10 +43,10 @@ data_dict = {
         "crevasse_splay_lines": [444.137, 475.626],  # Converted from crevasse_splay_distances
         "avulsion_belt": (480, 440)  # Example avulsion belt range
     },
-    "MAHAJAMBA": {
-        "avulsion_lines": [109.403],  # Converted from avulsion_distances
-        "crevasse_splay_lines": [],  # No crevasse splay distances for MAHAJAMBA
-        "avulsion_belt": (136.591, 105.403)  # Converted from the range provided
+    "VENEZ_2022_N": {
+        "avulsion_lines": [18.604],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [8.969, 6.5],  # No crevasse splay distances for MAHAJAMBA
+        "avulsion_belt": (18, 8)  # Converted from the range provided
     },
     "ARG_LAKE": {
         "avulsion_lines": [235.852, 204.908, 190.422, 170.924, 59.082],  # Converted from avulsion_distances
@@ -63,11 +63,11 @@ data_dict = {
         "crevasse_splay_lines": [1888.197],  # Converted from crevasse_splay_distances (SMALL SPLAY)
         "avulsion_belt": (1872.683, 1860.060)  # Example avulsion belt range
     },
-    "TRINITY": {
-        "avulsion_lines": [50.000],  # Converted from avulsion_distances
-        "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
-        "avulsion_belt": (55.000, 45.000)  # Example avulsion belt range
-    },
+    # "TRINITY": {
+    #     "avulsion_lines": [50.000],  # Converted from avulsion_distances
+    #     "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+    #     "avulsion_belt": (55.000, 45.000)  # Example avulsion belt range
+    # },
 }
 
 
@@ -112,13 +112,9 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
     for idx, (name, details) in enumerate(data_dict.items()):
         ax = axs.flatten()[idx]
         print(f'Processing {name}...')
-        df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
-        df = df[df['lambda'] > 0.0001]
-        df = df[df['lambda'] < 1000]
-        # Convert 'dist_out' from meters to kilometers
-        df['dist_out'] = df['dist_out'] / 1000
-        print(name, len(df))
-        df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(4,4), noplot=True)
+        df = pd.read_csv(f'data/{name}_output_corrected.csv')
+        df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
+        df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
         
         min_threshold = 0.05
 
@@ -146,8 +142,8 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
 
         ax.set_xlabel('Distance along reach (km)')
         ax.set_ylabel(r'$\Lambda$', rotation=0, labelpad=5)
-        ax.set_ylim(.01, 400)  # Set limits in log scale
-        ax.set_yscale('log')
+        # ax.set_ylim(.1, 400)  # Set limits in log scale
+        # ax.set_yscale('log')
         ax.invert_xaxis()  # Reverse the x-axis
         ax.set_title(name)  # Set the title of the plot to the name
 
@@ -155,9 +151,9 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
         ax.yaxis.grid(True, which='major', linestyle='--', linewidth=0.5, color='grey')
         ax.yaxis.grid(True, which='minor', linestyle=':', linewidth=0.5, color='lightgrey')
 
-        # Set y tick labels to non-scientific notation
-        ax.set_yticks([0.01, 0.1, 1, 10, 100], minor=False)
-        ax.set_yticklabels(['0.01', '0.1', '1', '10', '100'])
+        # # Set y tick labels to non-scientific notation
+        # ax.set_yticks([0.1, 1, 10, 100], minor=False)
+        # ax.set_yticklabels(['0.1', '1', '10', '100'])
 
         # Add minor tick marks
         ax.minorticks_on()

@@ -16,8 +16,8 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from shapely.geometry import shape
 import json
 #%%
-starting_reach_id = 75140100281
-name = "TRINITY"
+starting_reach_id = 61303300051
+name = "VENEZ_2022_N"
 
 # Define the PostgreSQL connection parameters
 db_params = {

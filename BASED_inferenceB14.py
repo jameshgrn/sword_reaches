@@ -40,7 +40,6 @@ xgb_reg = xgb.XGBRegressor()
 xgb_reg.load_model("data/based_us_sans_trampush_early_stopping_combat_overfitting.ubj")
 b14['XGB_depth'] = xgb_reg.predict(guesswork)
 print(b14.XGB_depth.describe())
-b14.to_csv('data/B14_output_corrected.csv', index=False)
 df = b14
 
 # Reflecting values when only ridge1 exists and ridge2 does not
@@ -93,6 +92,8 @@ df['lambda'] = df['gamma_mean'] * df['superelevation_mean']
 
 df = df[df['lambda'] > 0.0001]
 df = df[df['lambda'] < 1000]
+
+df.to_csv('data/B14_output_corrected.csv', index=False)
 
 df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
 
