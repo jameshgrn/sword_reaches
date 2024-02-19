@@ -53,11 +53,16 @@ data_dict = {
         "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
         "avulsion_belt": (255.346, 89.952)  # Example avulsion belt range
     },
-    "V7": {
-        "avulsion_lines": [2101.933, 2106.922],  # Converted from avulsion_distances
-        "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
-        "avulsion_belt": (2127.714, 2083.699)  # Example avulsion belt range
+    "SULENGGUOLE": {
+        "avulsion_lines": [139.661, 125.459, 94.885, 93.486, 64.169, 49.354, 4.008],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [148.089, 136.663, 133.673, 118.248, 68.395],  # Converted from crevasse_splay_distances
+        "avulsion_belt": (189.890, .2)  # Example avulsion belt range
     },
+    # "V7": {
+    #     "avulsion_lines": [2101.933, 2106.922],  # Converted from avulsion_distances
+    #     "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+    #     "avulsion_belt": (2127.714, 2083.699)  # Example avulsion belt range
+    # },
     "V11": {
         "avulsion_lines": [1869.058, 1865.705],  # Converted from avulsion_distances
         "crevasse_splay_lines": [1888.197],  # Converted from crevasse_splay_distances (SMALL SPLAY)
@@ -143,6 +148,8 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
         ax.set_xlabel('Distance along reach (km)')
         ax.set_ylabel(r'$\Lambda$', rotation=0, labelpad=5)
         # ax.set_ylim(.1, 400)  # Set limits in log scale
+        if name == 'ARG_LAKE':
+            ax.set_yscale('log')
         # ax.set_yscale('log')
         ax.invert_xaxis()  # Reverse the x-axis
         ax.set_title(name)  # Set the title of the plot to the name
