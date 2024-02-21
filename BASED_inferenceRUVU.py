@@ -8,34 +8,40 @@ import seaborn as sns
 from multi_plotter import binscatter
 import binsreg
 
-SULENGGUOLE = pd.read_csv('data/SULENGGUOLE_output.csv')
-dicharge_rid = {48305900141: 17.491, 48305900391: 17.277, 48305900391: 118.883,
-                48305900381: 19.006, 48305900371: 19.202, 48305700171: 28.535,
-                48305700161: 28.655, 48305700151: 29.371, 48305600141: 29.394,
-                48305600131: 29.48, 48305600121: 29.547, 48305600111: 29.308,
-                48305600101: 29.222, 48305600091: 32.393, 48305600081: 26.937,
-                48305600071: 26.937, 48305600061: 26.937, 48305600051: 26.291,
-                48305600041: 25.384}
+RUVU = pd.read_csv('data/RUVU_output.csv')
+dicharge_rid = {11738000251: 12.753, 11738000241: 21.43,
+                11738000231: 43.357, 11738000221: 123.203,
+                11738000211: 122.944, 11738000201: 126.41,
+                11738000191: 126.847, 11738000181: 127.509,
+                11738000171: 128.771, 11738000161: 128.248,
+                11738000151: 128.891, 11738000141: 127.35,
+                11738000131: 132.937, 11738000121: 132.07,
+                11738000111: 134.76, 11738000101: 131.892,
+                11738000091: 132.23, 11738000081: 129.944,
+                11738000071: 141.319, 11738000061: 138.696,
+                11738000051: 144.826, 11738000041: 150.71,
+                11738000031: 150.337, 11738000023: 139.623,
+                11738000013: 131.661}
 
 discharge_series = pd.DataFrame(dicharge_rid, index=[0]).T
 discharge_series.reset_index(inplace=True)
 discharge_series.columns = ['reach_id', 'discharge_uncorrected']
 discharge_series['reach_id'] = discharge_series['reach_id'].astype(int)
-SULENGGUOLE = SULENGGUOLE.merge(discharge_series, on='reach_id', how='left').dropna()
+RUVU = RUVU.merge(discharge_series, on='reach_id', how='left').dropna()
 
 with open('data/inverted_discharge_params.pickle', 'rb') as f:
     params = pickle.load(f)
 def inverse_power_law(y, a, b):
     return (y / a) ** (1 / b)
-SULENGGUOLE['corrected_discharge'] = inverse_power_law(SULENGGUOLE['discharge_uncorrected'], *params)
+RUVU['corrected_discharge'] = inverse_power_law(RUVU['discharge_uncorrected'], *params)
 
-guesswork = SULENGGUOLE[['width', 'slope', 'corrected_discharge']].astype(float)
+guesswork = RUVU[['width', 'slope', 'corrected_discharge']].astype(float)
 guesswork.columns = ['width', 'slope', 'discharge']
 xgb_reg = xgb.XGBRegressor()
 xgb_reg.load_model("data/based_us_sans_trampush_early_stopping_combat_overfitting.ubj")
-SULENGGUOLE['XGB_depth'] = xgb_reg.predict(guesswork)
-SULENGGUOLE['XGB_depth'] = SULENGGUOLE['XGB_depth'].clip(lower=0)
-df = SULENGGUOLE
+RUVU['XGB_depth'] = xgb_reg.predict(guesswork)
+RUVU['XGB_depth'] = RUVU['XGB_depth'].clip(lower=0)
+df = RUVU
 
 # Reflecting values when only ridge1 exists and ridge2 does not
 mask_only_ridge1 = (~df['ridge1_elevation'].isna()) & (df['ridge2_elevation'].isna())
@@ -84,11 +90,11 @@ df['gamma_mean'] = df[['gamma1', 'gamma2']].mean(axis=1, skipna=True)
 
 # Computing theta
 df['lambda'] = df['gamma_mean'] * df['superelevation_mean']
+print(df['lambda'].describe())
+df = df[df['lambda'] > 0]
+#df = df[df['lambda'] < 1000]
 
-df = df[df['lambda'] > 0.0001]
-df = df[df['lambda'] < 1000]
-
-df.to_csv('data/SULENGGUOLE_output_corrected.csv', index=False)
+df.to_csv('data/RUVU_output_corrected.csv', index=False)
 
 df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
 
@@ -119,7 +125,7 @@ plt.errorbar(df_est['dist_out'], df_est['lambda'], yerr=errors, fmt='none', ecol
 plt.xlabel('Distance along reach (km)')
 plt.ylabel(r'$\Lambda$', rotation=0, labelpad=5)
 # plt.ylim(.01, 400)  # Set limits in log scale
-# plt.yscale('log')
+plt.yscale('log')
 plt.gca().invert_xaxis()  # Reverse the x-axis
 
 # Add horizontal grid lines, light and dashed
@@ -133,20 +139,19 @@ plt.grid(True, which='minor', linestyle=':', linewidth=0.5, color='lightgrey', a
 plt.minorticks_on()
 plt.show()
 # sns.scatterplot(x='dist_out', y='lambda', data=df, s=180, color='#26C6DA', alpha=0.7, edgecolor='black', marker='D', zorder=0)
-# plt.yscale('log')
 # plt.show()
 
 # %%
 
-SULENGGUOLE['corrected_discharge'] = inverse_power_law(SULENGGUOLE['discharge_uncorrected'], *params)
+RUVU['corrected_discharge'] = inverse_power_law(RUVU['discharge_uncorrected'], *params)
 
-guesswork = SULENGGUOLE[['width', 'slope', 'corrected_discharge']].astype(float)
+guesswork = RUVU[['width', 'slope', 'corrected_discharge']].astype(float)
 guesswork.columns = ['width', 'slope', 'discharge']
 xgb_reg = xgb.XGBRegressor()
 xgb_reg.load_model("data/based_us_sans_trampush_early_stopping_combat_overfitting.ubj")
-SULENGGUOLE['XGB_depth'] = xgb_reg.predict(guesswork)
-SULENGGUOLE['XGB_depth'] = SULENGGUOLE['XGB_depth'].clip(lower=0)
-df = SULENGGUOLE
+RUVU['XGB_depth'] = xgb_reg.predict(guesswork)
+RUVU['XGB_depth'] = RUVU['XGB_depth'].clip(lower=0)
+df = RUVU
 
 # Reflecting values when only ridge1 exists and ridge2 does not
 mask_only_ridge1 = (~df['ridge1_elevation'].isna()) & (df['ridge2_elevation'].isna())
@@ -199,7 +204,7 @@ df['lambda'] = df['gamma_mean'] * df['superelevation_mean']
 df = df[df['lambda'] > 0.0001]
 df = df[df['lambda'] < 1000]
 
-df.to_csv('data/SULENGGUOLE_output_corrected.csv', index=False)
+df.to_csv('data/RUVU_output_corrected.csv', index=False)
 
 df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
 

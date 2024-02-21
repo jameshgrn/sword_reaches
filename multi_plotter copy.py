@@ -26,8 +26,8 @@ data_dict = {
         "avulsion_lines": [3644.767, 3640.772, 3621.538, 3630.944, 3596.765, 3582.564, 3607.758],  # Converted from avulsion_distances
         "crevasse_splay_lines": [3647.977, 3639.155],  # Converted from crevasse_splay_distances
         "avulsion_belt": (3499.215, 3641.982),  # Converted from the range provided
-
     },
+    
     "B1": {
         "avulsion_lines": [4403.519],  # Converted from avulsion_distances
         "crevasse_splay_lines": [],  # No crevasse splay distances for B1
@@ -54,9 +54,14 @@ data_dict = {
         "avulsion_belt": (255.346, 89.952)  # Example avulsion belt range
     },
     "SULENGGUOLE": {
-        "avulsion_lines": [139.661, 125.459, 94.885, 93.486, 64.169, 49.354, 4.008],  # Converted from avulsion_distances
-        "crevasse_splay_lines": [148.089, 136.663, 133.673, 118.248, 68.395],  # Converted from crevasse_splay_distances
+        "avulsion_lines": [148.089, 139.661, 125.459, 64.169, 4.008],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [136.663, 133.673, 118.248, 68.395],  # Converted from crevasse_splay_distances
         "avulsion_belt": (189.890, .2)  # Example avulsion belt range
+    },
+    "RUVU": {
+        "avulsion_lines": [114.183, 74.577, 53.817],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [146.696],  # Converted from crevasse_splay_distances
+        "avulsion_belt": (0.000, 0.000)  # Example avulsion belt range
     },
     # "V7": {
     #     "avulsion_lines": [2101.933, 2106.922],  # Converted from avulsion_distances
@@ -74,7 +79,6 @@ data_dict = {
     #     "avulsion_belt": (55.000, 45.000)  # Example avulsion belt range
     # },
 }
-
 
 #%%
 import matplotlib.pyplot as plt
@@ -108,7 +112,7 @@ def binscatter(**kwargs):
 
     return df_est
 
-def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
+def plot_binscatter(data_dict, max_gamma=500, max_superelevation=20):
     num_plots = len(data_dict)
     num_columns = min(num_plots, 4)
     num_rows = (num_plots + num_columns - 1) // num_columns
@@ -119,6 +123,8 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
         print(f'Processing {name}...')
         df = pd.read_csv(f'data/{name}_output_corrected.csv')
         df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
+        df = df[df['lambda'] > 0.005]
+        df = df[df['lambda'] < 1000]
         df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
         
         min_threshold = 0.05
@@ -138,18 +144,19 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
 
         # Create an array with the lower and upper error margins
         errors = np.array([df_est['error_lower'], df_est['error_upper']])
-
+        df_rolling = df.rolling(window=2, center=True).median()
+        
+        
         # Plot binned scatterplot
-        sns.scatterplot(x='dist_out', y='lambda', data=df_est, ax=ax, s=180, color='#26C6DA', alpha=0.7, edgecolor='black', marker='D', zorder=0)
-
+        sns.scatterplot(x='dist_out', y='lambda', data=df_est, ax=ax, s=140, color='#26C6DA', alpha=0.7, edgecolor='black', marker='D', zorder=0)
+        sns.lineplot(x='dist_out', y='lambda', data=df_est, ax=ax, color='k', zorder=1, lw=0.5,)
         # Use ax.errorbar to plot the error bars, passing the errors array directly
         ax.errorbar(df_est['dist_out'], df_est['lambda'], yerr=errors, fmt='none', ecolor='k', elinewidth=1, capsize=3, alpha=0.5)
 
         ax.set_xlabel('Distance along reach (km)')
         ax.set_ylabel(r'$\Lambda$', rotation=0, labelpad=5)
         # ax.set_ylim(.1, 400)  # Set limits in log scale
-        if name == 'ARG_LAKE':
-            ax.set_yscale('log')
+
         # ax.set_yscale('log')
         ax.invert_xaxis()  # Reverse the x-axis
         ax.set_title(name)  # Set the title of the plot to the name
@@ -166,7 +173,7 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
         ax.minorticks_on()
 
         # Fill the area between the start and end of the avulsion belt across the entire y-axis
-        ax.fill_betweenx(y=[0, 1], x1=details['avulsion_belt'][0], x2=details['avulsion_belt'][1], color='gray', alpha=0.3, transform=ax.get_xaxis_transform())
+        # ax.fill_betweenx(y=[0, 1], x1=details['avulsion_belt'][0], x2=details['avulsion_belt'][1], color='gray', alpha=0.3, transform=ax.get_xaxis_transform())
 
         # Plot the avulsion_dist_out as vertical black dashed lines behind the data
         for dist_out in details.get('avulsion_lines', []):
@@ -180,6 +187,7 @@ def plot_binscatter(data_dict, max_gamma=1000, max_superelevation=500):
         # Change the background shading color to a more complementary color than red
         ax.fill_between([x_start, x_end], y1=2, y2=ax.get_ylim()[1], alpha=0.2, color='#B0E0E6', zorder=0)  # Using PowderBlue for a softer appearance
         ax.axhline(y=2, color='gray', linestyle='--')
+        ax.set_yscale('log')
 
     plt.tight_layout()
     #plt.savefig('/Users/jakegearon/CursorProjects/RORA_followup/lambda_binscatter.png', dpi=300)
@@ -191,7 +199,7 @@ plot_binscatter(data_dict)
 import pandas as pd
 import numpy as np
 
-def extract_and_analyze_lambda_df(data_dict, max_gamma=1000, max_superelevation=1000):
+def extract_and_analyze_lambda_df(data_dict, max_gamma=100, max_superelevation=30):
     all_lambda_values = []  # To store lambda values across all names for overall mean calculation
     results_list = []  # To store intermediate results for DataFrame conversion
 
@@ -199,7 +207,7 @@ def extract_and_analyze_lambda_df(data_dict, max_gamma=1000, max_superelevation=
         print(f'Processing {name}...')
         # Process data and perform bin scatter analysis
         df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
-        df = df[df['lambda'] > 0.001]
+        df = df[df['lambda'] > 0.005]
         df = df[df['lambda'] < 1000]
         df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
 
@@ -254,7 +262,7 @@ large_df_est = pd.DataFrame()
 
 for name, details in data_dict.items():
     df = process_data(f'data/{name}_output.csv', max_gamma=1000, max_superelevation=1000)
-    df = df[(df['lambda'] > 0) & (df['lambda'] < 1000)]
+    df = df[(df['lambda'] > 0) & (df['lambda'] < 2000)]
     df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
     df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
     

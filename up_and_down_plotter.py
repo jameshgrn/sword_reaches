@@ -16,9 +16,9 @@ from shapely import wkb
 import numpy as np
 from format_funcs import process_data
 
-name = "SULENGGUOLE"
-max_gamma = 1000
-max_superelevation = 500
+name = "RUVU"
+max_gamma = 10000
+max_superelevation = 5000
 df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
 
  #%%
