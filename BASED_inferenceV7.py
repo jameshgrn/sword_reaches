@@ -25,6 +25,7 @@ with open('data/inverted_discharge_params.pickle', 'rb') as f:
 def inverse_power_law(y, a, b):
     return (y / a) ** (1 / b)
 V7['corrected_discharge'] = inverse_power_law(V7['discharge_uncorrected'], *params)
+V7['slope'] = V7['slope'] / 1000
 
 guesswork = V7[['width', 'slope', 'corrected_discharge']].astype(float)
 guesswork.columns = ['width', 'slope', 'discharge']
@@ -41,16 +42,7 @@ df.loc[mask_only_ridge1, 'floodplain2_elevation'] = df.loc[mask_only_ridge1, 'fl
 df.loc[mask_only_ridge1, 'ridge2_dist_along'] = -df.loc[mask_only_ridge1, 'ridge1_dist_along']
 df.loc[mask_only_ridge1, 'floodplain2_dist_to_river_center'] = -df.loc[mask_only_ridge1, 'floodplain1_dist_to_river_center']
 
-df['slope'] = df['slope'] / 1000
 
-#### SUPERELEVATION ####
-
-# Calculate superelevation for ridge1 and ridge2
-df['superelevation1'] = (df['ridge1_elevation'] - df['floodplain1_elevation']) / (df['ridge1_elevation'] - (df['ridge1_elevation'] - df['XGB_depth']))
-df['superelevation2'] = (df['ridge2_elevation'] - df['floodplain2_elevation']) / (df['ridge2_elevation'] - (df['ridge2_elevation'] - df['XGB_depth']))
-
-# Average the superelevation values
-df['superelevation_mean'] = (df['superelevation1'] + df['superelevation2']) / 2
 
 # Calculate slope for ridge1
 ridge1_slope = df.apply(lambda row: (row['ridge1_elevation'] - row['floodplain1_elevation']) / abs(row['ridge1_dist_along']), axis=1)
@@ -79,12 +71,35 @@ df['gamma2'] = np.abs(df['ridge2_slope']) / df['slope']
 # Calculate mean gamma
 df['gamma_mean'] = df[['gamma1', 'gamma2']].mean(axis=1, skipna=True)
 
-# Computing theta
+df['a_b_1'] = (df['ridge1_elevation'] - df['channel_elevation']) / (df['XGB_depth'])
+df['a_b_2'] = (df['ridge2_elevation'] - df['channel_elevation']) / (df['XGB_depth'])
+
+df['a_b'] = (df['a_b_1'] + df['a_b_2']) / 2
+
+# Define conditions
+conditions = [
+    df['a_b'] <= 5,
+    # (df['a_b'] > 2) & (df['a_b'] <= 2.5),
+    df['a_b'] > 5
+]
+
+# Define choices based on conditions
+choices = [
+    df['XGB_depth'],  # If a_b is < 1, then depth is equal to XGB_depth
+    # (df['ridge1_elevation'] - (df['channel_elevation'] - df['XGB_depth'])) + (df['ridge2_elevation'] - (df['channel_elevation'] - df['XGB_depth'])) / 2,  # If 1 <= a_b < 1.5
+    (df['ridge1_elevation'] - (df['channel_elevation'])) + (df['ridge2_elevation'] - (df['channel_elevation'])) / 2  # If a_b >= 1.5
+]
+
+# Apply conditions and choices to calculate corrected_depth
+df['corrected_denominator'] = np.select(conditions, choices)
+
+df['superelevation1'] = (df['ridge1_elevation'] - df['floodplain1_elevation']) / (df['corrected_denominator'])
+df['superelevation2'] = (df['ridge2_elevation'] - df['floodplain2_elevation']) / (df['corrected_denominator'])
+df['superelevation_mean'] = (df['superelevation1'] + df['superelevation2']) / 2
+
 df['lambda'] = df['gamma_mean'] * df['superelevation_mean']
-
-df = df[df['lambda'] > 0.0001]
-df = df[df['lambda'] < 1000]
-
+print(df['lambda'].describe())
+df = df[df['lambda'] > 0]
 df.to_csv('data/V7_output_corrected.csv', index=False)
 
 df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)

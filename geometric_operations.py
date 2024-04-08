@@ -14,12 +14,12 @@ def calculate_azimuth(node_gdf):
 
 def make_cross_section(row):
     start = (
-        row['original_geom'].x + 30 * row['width'] * np.cos(row['azimuth'] + np.pi / 2),
-        row['original_geom'].y + 30 * row['width'] * np.sin(row['azimuth'] + np.pi / 2)
+        row['original_geom'].x + 100 * row['width'] * np.cos(row['azimuth'] + np.pi / 2),
+        row['original_geom'].y + 100 * row['width'] * np.sin(row['azimuth'] + np.pi / 2)
     )
     end = (
-        row['original_geom'].x + 30 * row['width'] * np.cos(row['azimuth'] - np.pi / 2),
-        row['original_geom'].y + 30 * row['width'] * np.sin(row['azimuth'] - np.pi / 2)
+        row['original_geom'].x + 100 * row['width'] * np.cos(row['azimuth'] - np.pi / 2),
+        row['original_geom'].y + 100 * row['width'] * np.sin(row['azimuth'] - np.pi / 2)
     )
     return LineString([start, end]) 
 

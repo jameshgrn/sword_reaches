@@ -15,6 +15,10 @@ import numpy as np
 import seaborn as sns
 from format_funcs import process_data
 from statsmodels.nonparametric.smoothers_lowess import lowess
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
 
 sns.set_context('paper', font_scale = 1.1)
 sns.set_style('whitegrid')
@@ -23,51 +27,43 @@ sns.set_style('whitegrid')
 # Example usage with a dictionary pre-filled with your data:
 data_dict = {
     "B14": {
-        "avulsion_lines": [3644.767, 3640.772, 3621.538, 3630.944, 3596.765, 3582.564, 3607.758],  # Converted from avulsion_distances
+        "avulsion_lines": [3639.356, 3635.160, 3626.751], #2013, 2016   #[3644.767, 3640.772, 3621.538, 3630.944, 3596.765, 3582.564, 3607.758],  # Converted from avulsion_distances
         "crevasse_splay_lines": [3647.977, 3639.155],  # Converted from crevasse_splay_distances
-        "avulsion_belt": (3499.215, 3641.982),  # Converted from the range provided
+        # "avulsion_belt": (3499.215, 3641.982),  # Converted from the range provided
     },
-    
     "B1": {
         "avulsion_lines": [4403.519],  # Converted from avulsion_distances
         "crevasse_splay_lines": [],  # No crevasse splay distances for B1
-        "avulsion_belt": (4434.684, 4395.922)  # Converted from the range provided
     },
     "VENEZ_2023": {
-        "avulsion_lines": [],  # Converted from avulsion_distances
-        "crevasse_splay_lines": [177.700, 147.912],  # Converted from crevasse_splay_distances
-        "avulsion_belt": (178.085, 146.912)  # Example avulsion belt range
+        "avulsion_lines": [178.286], # 2023 # Converted from avulsion_distances
+        "crevasse_splay_lines": [147.912], # 2021 # Converted from crevasse_splay_distances
     },
     "VENEZ_2023_W": {
         "avulsion_lines": [],  # Converted from avulsion_distances
         "crevasse_splay_lines": [444.137, 475.626],  # Converted from crevasse_splay_distances
-        "avulsion_belt": (480, 440)  # Example avulsion belt range
     },
     "VENEZ_2022_N": {
-        "avulsion_lines": [18.604],  # Converted from avulsion_distances
-        "crevasse_splay_lines": [8.969, 6.5],  # No crevasse splay distances for MAHAJAMBA
-        "avulsion_belt": (18, 8)  # Converted from the range provided
+        "avulsion_lines": [44.194],#[18.604],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [26.602, 8.969, 6.5],  # No crevasse splay distances for MAHAJAMBA
     },
     "ARG_LAKE": {
         "avulsion_lines": [235.852, 204.908, 190.422, 170.924, 59.082],  # Converted from avulsion_distances
         "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
-        "avulsion_belt": (255.346, 89.952)  # Example avulsion belt range
     },
     "SULENGGUOLE": {
         "avulsion_lines": [148.089, 139.661, 125.459, 64.169, 4.008],  # Converted from avulsion_distances
         "crevasse_splay_lines": [136.663, 133.673, 118.248, 68.395],  # Converted from crevasse_splay_distances
-        "avulsion_belt": (189.890, .2)  # Example avulsion belt range
     },
     "RUVU": {
-        "avulsion_lines": [114.183, 74.577, 53.817],  # Converted from avulsion_distances
-        "crevasse_splay_lines": [146.696],  # Converted from crevasse_splay_distances
-        "avulsion_belt": (0.000, 0.000)  # Example avulsion belt range
+        "avulsion_lines": [114.183, 125.756, 53.817],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [146.696, 129.353, 15.925], #last is neck cutoff  # Converted from crevasse_splay_distances
     },
-    # "V7": {
-    #     "avulsion_lines": [2101.933, 2106.922],  # Converted from avulsion_distances
-    #     "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
-    #     "avulsion_belt": (2127.714, 2083.699)  # Example avulsion belt range
-    # },
+    "V7": {
+        "avulsion_lines": [2101.933, 2106.922],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+        "avulsion_belt": (2127.714, 2083.699)  # Example avulsion belt range
+    },
     "V11": {
         "avulsion_lines": [1869.058, 1865.705],  # Converted from avulsion_distances
         "crevasse_splay_lines": [1888.197],  # Converted from crevasse_splay_distances (SMALL SPLAY)
@@ -78,6 +74,22 @@ data_dict = {
     #     "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
     #     "avulsion_belt": (55.000, 45.000)  # Example avulsion belt range
     # },
+    "MALAWI_2014": {
+        "avulsion_lines": [825.309],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [834.466, 836.866], #second is neck cutoff  # Converted from crevasse_splay_distances
+    },
+    # "BERMARIVO": {
+    #     "avulsion_lines": [152.421],  # Converted from avulsion_distances
+    #     "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+    # },
+    # "MADA1": {
+    #     "avulsion_lines": [209.686],  # Converted from avulsion_distances
+    #     "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+    # },
+    "RIOPIRAI": {
+        "avulsion_lines": [4403.124],  # Converted from avulsion_distances
+        "crevasse_splay_lines": [],  # Converted from crevasse_splay_distances
+    },
 }
 
 #%%
@@ -112,7 +124,11 @@ def binscatter(**kwargs):
 
     return df_est
 
-def plot_binscatter(data_dict, max_gamma=500, max_superelevation=20):
+# Assuming the Parquet file is named 'all_rivers_processed.parquet' and located in the 'data' directory
+all_rivers_data = pd.read_parquet('data/all_rivers_processed.parquet')
+
+# Example of how to adjust the plot_binscatter function
+def plot_binscatter(all_rivers_data, data_dict, max_gamma=20000, max_superelevation=20000):
     num_plots = len(data_dict)
     num_columns = min(num_plots, 4)
     num_rows = (num_plots + num_columns - 1) // num_columns
@@ -121,43 +137,47 @@ def plot_binscatter(data_dict, max_gamma=500, max_superelevation=20):
     for idx, (name, details) in enumerate(data_dict.items()):
         ax = axs.flatten()[idx]
         print(f'Processing {name}...')
-        df = pd.read_csv(f'data/{name}_output_corrected.csv')
+        
+        # Filter the DataFrame for the current river
+        df = all_rivers_data[all_rivers_data['river_name'] == name]
         df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
-        df = df[df['lambda'] > 0.005]
-        df = df[df['lambda'] < 1000]
-        df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
-        
-        min_threshold = 0.05
+        df = df[df['lambda'] > 0.0001]
+        df = df[df['lambda'] < 20000]
+        if name == 'MADA1':
+            df_est = df
+        else:
+            df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True,)
+            print('Length of df:', len(df))
+            print('Length of df_est:', len(df_est))
+            min_threshold = 0.0001
 
-        # Ensure 'lambda' and 'ci_l' values are above the threshold before calculating error bars
-        df_est['lambda'] = df_est['lambda'].clip(lower=min_threshold)
-        df_est['ci_l'] = df_est['ci_l'].clip(lower=min_threshold)
-        df_est['ci_r'] = df_est['ci_r'].clip(lower=min_threshold)
+            # Ensure 'lambda' and 'ci_l' values are above the threshold before calculating error bars
+            df_est['lambda'] = df_est['lambda'].clip(lower=min_threshold)
+            df_est['ci_l'] = df_est['ci_l'].clip(lower=min_threshold)
+            df_est['ci_r'] = df_est['ci_r'].clip(lower=min_threshold)
 
-        # Calculate the error bars in the original scale
-        df_est['error_lower'] = df_est['lambda'] - df_est['ci_l']
-        df_est['error_upper'] = df_est['ci_r'] - df_est['lambda']
+            # Calculate the error bars in the original scale
+            df_est['error_lower'] = df_est['lambda'] - df_est['ci_l']
+            df_est['error_upper'] = df_est['ci_r'] - df_est['lambda']
 
-        # Ensure errors are positive
-        df_est['error_lower'] = np.abs(df_est['error_lower'])
-        df_est['error_upper'] = np.abs(df_est['error_upper'])
+            # Ensure errors are positive
+            df_est['error_lower'] = np.abs(df_est['error_lower'])
+            df_est['error_upper'] = np.abs(df_est['error_upper'])
 
-        # Create an array with the lower and upper error margins
-        errors = np.array([df_est['error_lower'], df_est['error_upper']])
-        df_rolling = df.rolling(window=2, center=True).median()
-        
+            # Create an array with the lower and upper error margins
+            errors = np.array([df_est['error_lower'], df_est['error_upper']])
+        median_spacing = 1000*df.dist_out.diff().apply(np.abs).median()
+        non_dim_median_spacing = df['meand_len'].median()/median_spacing
+        # df_rolling = df.rolling(window=int(non_dim_median_spacing), center=True).median()
         
         # Plot binned scatterplot
-        sns.scatterplot(x='dist_out', y='lambda', data=df_est, ax=ax, s=140, color='#26C6DA', alpha=0.7, edgecolor='black', marker='D', zorder=0)
-        sns.lineplot(x='dist_out', y='lambda', data=df_est, ax=ax, color='k', zorder=1, lw=0.5,)
-        # Use ax.errorbar to plot the error bars, passing the errors array directly
-        ax.errorbar(df_est['dist_out'], df_est['lambda'], yerr=errors, fmt='none', ecolor='k', elinewidth=1, capsize=3, alpha=0.5)
+        
+        # Visualize the raw scatter data faintly in the background
+        sns.scatterplot(x='dist_out', y='lambda', data=df, ax=ax, s=30, color='lightgrey', alpha=0.4, edgecolor='black', zorder=0)
 
+        ax.errorbar(df_est['dist_out'], df_est['lambda'], yerr=errors, fmt='none', ecolor='k', elinewidth=1, capsize=3, alpha=0.5)
         ax.set_xlabel('Distance along reach (km)')
         ax.set_ylabel(r'$\Lambda$', rotation=0, labelpad=5)
-        # ax.set_ylim(.1, 400)  # Set limits in log scale
-
-        # ax.set_yscale('log')
         ax.invert_xaxis()  # Reverse the x-axis
         ax.set_title(name)  # Set the title of the plot to the name
 
@@ -165,41 +185,33 @@ def plot_binscatter(data_dict, max_gamma=500, max_superelevation=20):
         ax.yaxis.grid(True, which='major', linestyle='--', linewidth=0.5, color='grey')
         ax.yaxis.grid(True, which='minor', linestyle=':', linewidth=0.5, color='lightgrey')
 
-        # # Set y tick labels to non-scientific notation
-        # ax.set_yticks([0.1, 1, 10, 100], minor=False)
-        # ax.set_yticklabels(['0.1', '1', '10', '100'])
-
         # Add minor tick marks
         ax.minorticks_on()
 
-        # Fill the area between the start and end of the avulsion belt across the entire y-axis
-        # ax.fill_betweenx(y=[0, 1], x1=details['avulsion_belt'][0], x2=details['avulsion_belt'][1], color='gray', alpha=0.3, transform=ax.get_xaxis_transform())
-
-        # Plot the avulsion_dist_out as vertical black dashed lines behind the data
         for dist_out in details.get('avulsion_lines', []):
-            ax.axvline(x=dist_out, color='k', linestyle='-.', zorder=1)
+            if dist_out is not None:
+                ax.axvline(x=dist_out, color='k', linestyle='-.', zorder=1)
 
-        # Plot the crevasse_splay_dist_out as vertical dark blue dotted lines behind the data
         for dist_out in details.get('crevasse_splay_lines', []):
-            ax.axvline(x=dist_out, color='k', linestyle=':', zorder=1)
-        
+            if dist_out is not None:
+                ax.axvline(x=dist_out, color='k', linestyle=':', zorder=1)
+                
         x_start, x_end = ax.get_xlim()
         # Change the background shading color to a more complementary color than red
-        ax.fill_between([x_start, x_end], y1=2, y2=ax.get_ylim()[1], alpha=0.2, color='#B0E0E6', zorder=0)  # Using PowderBlue for a softer appearance
-        ax.axhline(y=2, color='gray', linestyle='--')
+        ax.axhline(y=2.07, color='gray', linestyle='--')
         ax.set_yscale('log')
 
     plt.tight_layout()
-    #plt.savefig('/Users/jakegearon/CursorProjects/RORA_followup/lambda_binscatter.png', dpi=300)
+    plt.savefig('/Users/jakegearon/CursorProjects/RORA_followup/lambda_no_binscatter.png', dpi=300)
     plt.show()
 
 # Example usage with your data_dict
-plot_binscatter(data_dict)
+plot_binscatter(all_rivers_data, data_dict)
 # %%
 import pandas as pd
 import numpy as np
 
-def extract_and_analyze_lambda_df(data_dict, max_gamma=100, max_superelevation=30):
+def extract_and_analyze_lambda_df(data_dict, max_gamma=10000, max_superelevation=3000):
     all_lambda_values = []  # To store lambda values across all names for overall mean calculation
     results_list = []  # To store intermediate results for DataFrame conversion
 
@@ -207,8 +219,8 @@ def extract_and_analyze_lambda_df(data_dict, max_gamma=100, max_superelevation=3
         print(f'Processing {name}...')
         # Process data and perform bin scatter analysis
         df = process_data(f'data/{name}_output.csv', max_gamma=max_gamma, max_superelevation=max_superelevation)
-        df = df[df['lambda'] > 0.005]
-        df = df[df['lambda'] < 1000]
+        df = df[df['lambda'] > 0.0001]
+        df = df[df['lambda'] < 20000]
         df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
 
         name_lambda_values = []  # To store lambda values for the current name
@@ -262,19 +274,15 @@ large_df_est = pd.DataFrame()
 
 for name, details in data_dict.items():
     df = process_data(f'data/{name}_output.csv', max_gamma=1000, max_superelevation=1000)
-    df = df[(df['lambda'] > 0) & (df['lambda'] < 2000)]
+    df = df[(df['lambda'] > 0) & (df['lambda'] < 20000)]
     df['dist_out'] = df['dist_out'] / 1000  # Convert 'dist_out' from meters to kilometers
-    df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(3,3), noplot=True)
+    df_est = binscatter(x='dist_out', y='lambda', data=df, ci=(2,2), noplot=True)
     
     # Concatenate the current df and df_est to the large DataFrames
     large_df = pd.concat([large_df, df], ignore_index=True)
     large_df = large_df.sample(len(results_df), random_state=1997, replace=True)
     large_df_est = pd.concat([large_df_est, df_est], ignore_index=True)
 
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
 
 # Assuming large_df['lambda'] is your original large dataset
 # And results_df['Lambda Value'] contains the specific lambda values of interest
@@ -303,7 +311,6 @@ plt.ylabel('Count', labelpad=5)
 # Save and show the plot
 plt.savefig('/Users/jakegearon/CursorProjects/RORA_followup/lambda_comparison.png', dpi=300)
 plt.show()
-
 
 # %%
 from scipy import stats
@@ -336,10 +343,6 @@ if p_value < 0.05:
     print("The two distributions are significantly different.")
 else:
     print("The two distributions are not significantly different.")
-
-
-
-
 
 # %%
 from scipy.stats import shapiro, mannwhitneyu
@@ -399,35 +402,6 @@ def cohens_d(x, y):
 
 d = cohens_d(log_large_df_lambda, log_results_df_lambda)
 print(f"Cohen's d: {d}")
-# %%
-def simulate_wmw_power(n1, n2, delta, tdf=5, alpha=0.05, nsim=10000):
-    """
-    Simulate Wilcoxon-Mann-Whitney test to estimate power.
-    
-    Parameters:
-    - n1, n2: Sample sizes for the two groups.
-    - delta: Location difference between the two groups.
-    - tdf: Degrees of freedom for the t-distribution.
-    - alpha: Significance level.
-    - nsim: Number of simulations.
-    
-    Returns:
-    - Estimated power of the test.
-    """
-    reject_count = 0
-    for _ in range(nsim):
-        y1 = np.random.standard_t(tdf, size=n1)
-        y2 = np.random.standard_t(tdf, size=n2) + delta
-        p_value = stats.mannwhitneyu(y1, y2, alternative='two-sided').pvalue
-        if p_value <= alpha:
-            reject_count += 1
-    return reject_count / nsim
 
-# Example usage
-n1 = len(log_large_df_lambda)
-n2 = len(log_results_df_lambda)
-delta = np.mean(log_large_df_lambda) - np.mean(log_results_df_lambda)  # Location difference
-estimated_power = simulate_wmw_power(n1, n2, delta)
-print(f"Estimated power: {estimated_power}")
 
 # %%

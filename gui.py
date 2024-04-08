@@ -17,8 +17,8 @@ import cartopy.io.img_tiles as cimgt
 
 # VENEZ_2023_W last processed index: 386
 
-name = "RUVU"
-n = 5  # adjust this value to skip cross sections
+name = "TAMBOPATA"
+n = 1  # adjust this value to skip cross sections
 
 
 # Load the data
