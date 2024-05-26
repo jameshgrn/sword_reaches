@@ -5,3 +5,6 @@ leveefinders-a9d0bde21676.json
 .DS_Store
 last_processed.txt
 config.ini
+diffusion_results.npy
+icesat_gdf.gpkg
+>>>>>>> 9d5abd5 (try)
